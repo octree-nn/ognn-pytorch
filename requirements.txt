@@ -11,3 +11,4 @@ trimesh
 wget
 mesh2sdf
 matplotlib
+easydict
