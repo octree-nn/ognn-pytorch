@@ -17,10 +17,8 @@ from easydict import EasyDict as edict
 
 class NeuralMPU:
 
-  def __init__(self, device: torch.device):
+  def __init__(self):
     self.kNN = 8
-    self.device = device
-    self.mask = range_grid(0, 1, self.device)
 
   def linear_basis(self, x: torch.Tensor):
     return 1.0 - x.abs()
@@ -30,11 +28,12 @@ class NeuralMPU:
 
     # compute the coordinates of neighboring octree nodes
     scale = 2 ** depth
+    mask = range_grid(0, 1, pts.device)
     xyzf, ids = torch.split(pts, [3, 1], 1)
     xyzf = (xyzf + 1.0) * (scale / 2.0)    # [-1, 1] -> [0, scale]
     xyzf = xyzf - 0.5                      # the code is defined on the center
     xyzi = torch.floor(xyzf).detach()      # the integer part (N, 3), use floor
-    corners = xyzi.unsqueeze(1) + self.mask  # (N, 8, 3)
+    corners = xyzi.unsqueeze(1) + mask  # (N, 8, 3)
     coordsf = xyzf.unsqueeze(1) - corners    # (N, 8, 3), in [-1.0, 1.0]
 
     # coorers -> key -> the indices of neighboring octree nodes
@@ -123,7 +122,7 @@ class NeuralMPU:
 
   def __call__(self, pts: torch.Tensor, features: torch.Tensor, octree: Octree,
                depth_start: int, depth_end: int):
-    fvals, mpus = edict(), edict()
+    fvals, mpus = dict(), dict()
     for d in range(depth_start, depth_end+1):
       mpus[d] = self.perpare(octree, d, pts)
       fvals[d] = self.compute(pts, features[d], octree, mpus, depth_start, d)
