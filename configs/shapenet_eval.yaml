@@ -10,8 +10,11 @@ SOLVER:
   run: evaluate
   logdir: logs/shapenet_eval/test
   ckpt: logs/shapenet/shapenet/checkpoints/00300.model.pth
-  sdf_scale: 0.9
-  resolution: 128
+
+  # sdf
+  resolution: 128       # the resolution used for marching cubes
+  save_sdf: False       # save the sdfs in evaluation
+  sdf_scale: 0.9        # the scale of sdfs
 
 
 DATA:
@@ -20,10 +23,8 @@ DATA:
 
     # octree building
     depth: 6
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
+    point_scale: 0.5  # the scale of point clouds
 
     # data loading
     # location: data/ShapeNet/dataset   # the original testing data

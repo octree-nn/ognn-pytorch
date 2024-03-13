@@ -57,11 +57,11 @@ class GraphOUNet(torch.nn.Module):
         for i in range(self.decoder_stages)])
 
     # header
-    self.predict = torch.nn.ModuleList(
-        [self._make_predict_module(self.decoder_channels[i], 2)
+    self.predict = torch.nn.ModuleList([
+         self._make_predict_module(self.decoder_channels[i], 2)
          for i in range(self.decoder_stages)])
-    self.regress = torch.nn.ModuleList(
-        [self._make_predict_module(self.decoder_channels[i], 4)
+    self.regress = torch.nn.ModuleList([
+         self._make_predict_module(self.decoder_channels[i], 4)
          for i in range(self.decoder_stages)])
 
   def config_network(self):

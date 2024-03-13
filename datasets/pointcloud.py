@@ -10,7 +10,7 @@ import ocnn
 import torch
 import numpy as np
 
-from solver import Dataset
+from thsolver import Dataset
 from .utils import collate_func
 
 

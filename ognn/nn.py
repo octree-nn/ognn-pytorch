@@ -350,9 +350,9 @@ class GraphResBlocks(torch.nn.Module):
     self.resblk_num = resblk_num
     channels = [in_channels] + [out_channels] * resblk_num
     ResBlk = self._get_resblock(resblk_type)
-    self.resblks = torch.nn.ModuleList([
-        ResBlk(channels[i], channels[i+1], n_edge_type, n_node_type, group,
-               norm_type, bottleneck, group, norm_type) for i in range(self.resblk_num)])
+    self.resblks = torch.nn.ModuleList([ResBlk(channels[i], channels[i+1],
+        n_edge_type, n_node_type, group, norm_type, bottleneck)
+        for i in range(self.resblk_num)])
 
   def _get_resblock(self, resblk_type):
     if resblk_type == 'bottleneck':
