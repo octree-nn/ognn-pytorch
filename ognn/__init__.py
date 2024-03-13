@@ -5,5 +5,5 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-
-__all__ = []
+from . import loss
+from .ounet import GraphOUNet

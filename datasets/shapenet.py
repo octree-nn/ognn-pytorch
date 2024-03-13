@@ -9,7 +9,7 @@ import os
 import torch
 import numpy as np
 
-from solver import Dataset
+from thsolver import Dataset
 from ocnn.octree import Octree, Points
 from .utils import collate_func
 

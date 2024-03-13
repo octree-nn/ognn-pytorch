@@ -12,3 +12,4 @@ wget
 mesh2sdf
 matplotlib
 easydict
+thsolver

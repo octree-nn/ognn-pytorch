@@ -7,14 +7,13 @@
 
 import os
 import torch
-import numpy as np
+from thsolver import Solver
 
+import ognn
 import builder
 import utils
-from solver import Solver, get_config
 
-
-class DualOcnnSolver(Solver):
+class OGNSolver(Solver):
 
   def get_model(self, flags):
     return builder.get_model(flags)
@@ -101,23 +100,6 @@ class DualOcnnSolver(Solver):
     filename = os.path.join(self.logdir, '%04d.gt.points' % iter_num)
     batch['points_gt'][0].cpu().numpy().tofile(filename)
 
-  @classmethod
-  def update_configs(cls):
-    FLAGS = get_config()
-    FLAGS.SOLVER.resolution = 128       # the resolution used for marching cubes
-    FLAGS.SOLVER.save_sdf = False       # save the sdfs in evaluation
-    FLAGS.SOLVER.sdf_scale = 0.9        # the scale of sdfs
-
-    FLAGS.DATA.train.point_scale = 0.5  # the scale of point clouds
-    FLAGS.DATA.train.load_sdf = True    # load sdf samples
-    FLAGS.DATA.train.load_occu = False  # load occupancy samples
-    FLAGS.DATA.train.point_sample_num = 10000
-    FLAGS.DATA.train.sample_surf_points = False
-
-    # FLAGS.MODEL.skip_connections = True
-    FLAGS.DATA.test = FLAGS.DATA.train.clone()
-    FLAGS.LOSS.loss_type = 'sdf_reg_loss'
-
 
 if __name__ == '__main__':
-  DualOcnnSolver.main()
+  OGNSolver.main()

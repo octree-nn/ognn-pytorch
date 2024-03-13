@@ -24,6 +24,11 @@ SOLVER:
   lr_type: poly
   step_size: (160,240)
 
+  # sdf
+  resolution: 128       # the resolution used for marching cubes
+  save_sdf: False       # save the sdfs in evaluation
+  sdf_scale: 0.9        # the scale of sdfs
+
 DATA:
   train:
     name: shapenet
@@ -34,6 +39,12 @@ DATA:
     full_depth: 3
     node_dis: True
     split_label: True
+
+    # sdf
+    point_scale: 0.5  # the scale of point clouds
+    load_occu: False  # load occupancy samples
+    point_sample_num: 10000
+    sample_surf_points: False
 
     # data augmentation, add noise only
     distort: True
@@ -55,6 +66,12 @@ DATA:
     full_depth: 3
     node_dis: True
     split_label: True
+
+    # sdf
+    point_scale: 0.5  # the scale of point clouds
+    load_occu: False  # load occupancy samples
+    point_sample_num: 10000
+    sample_surf_points: False
 
     # data augmentation, add noise only
     distort: True
