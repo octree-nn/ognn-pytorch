@@ -133,6 +133,19 @@ class GraphConvNormRelu(torch.nn.Module):
     return out
 
 
+class GraphPad(torch.nn.Module):
+
+  def __init__(self):
+    super().__init__()
+
+  def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
+    node_mask = octree.graphs[depth].node_mask
+    shape = (node_mask.shape[0], x.shape[1])
+    out = x.new_zeros(shape)
+    out[node_mask] = x  # pad zeros for internal octree nodes
+    return x
+
+
 class Conv1x1(torch.nn.Module):
 
   def __init__(self, in_channels: int, out_channels: int, use_bias: bool = False):
@@ -218,7 +231,8 @@ class GraphDownsample(torch.nn.Module):
     self.out_channels = out_channels
     self.downsample = Downsample(in_channels)
     if in_channels != out_channels:
-      self.conv1x1 = Conv1x1NormRelu(in_channels, out_channels, group, norm_type)
+      self.conv1x1 = Conv1x1NormRelu(
+          in_channels, out_channels, group, norm_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     # downsample nodes at layer depth
@@ -249,7 +263,8 @@ class GraphUpsample(torch.nn.Module):
     self.out_channels = out_channels
     self.upsample = Upsample(in_channels)
     if in_channels != out_channels:
-      self.conv1x1 = Conv1x1NormRelu(in_channels, out_channels, group, norm_type)
+      self.conv1x1 = Conv1x1NormRelu(
+          in_channels, out_channels, group, norm_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     # upsample nodes at layer (depth-1)
@@ -337,7 +352,7 @@ class GraphResBlocks(torch.nn.Module):
     ResBlk = self._get_resblock(resblk_type)
     self.resblks = torch.nn.ModuleList([
         ResBlk(channels[i], channels[i+1], n_edge_type, n_node_type, group,
-        norm_type, bottleneck, group, norm_type) for i in range(self.resblk_num)])
+               norm_type, bottleneck, group, norm_type) for i in range(self.resblk_num)])
 
   def _get_resblock(self, resblk_type):
     if resblk_type == 'bottleneck':
@@ -351,4 +366,3 @@ class GraphResBlocks(torch.nn.Module):
     for i in range(self.resblk_num):
       data = self.resblks[i](data, octree, depth)
     return data
-

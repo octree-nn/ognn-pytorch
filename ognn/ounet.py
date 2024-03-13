@@ -10,47 +10,50 @@ import torch
 import torch.nn
 
 from ocnn.octree import Octree
-from .octreed import OctreeD
-from . import mpu, nn
+from ognn.octreed import OctreeD
+from ognn import mpu, nn
+from easydict import EasyDict as edict
 
 
 class GraphOUNet(torch.nn.Module):
 
   def __init__(self, in_channels: int):
     super().__init__()
-    self.config_network()
-    self.in_channels = in_channels
+    self.bottleneck = 4
     self.n_edge_type = 7
-    self.n_node_type = 7
-    self.group = 1
+    self.n_node_type = 5
+    self.in_channels = in_channels
+    self.config_network()
 
     self.neural_mpu = mpu.NeuralMPU()
-    self.encoder_stages = len(self.encoder_blocks)
-    self.decoder_stages = len(self.decoder_blocks)
+    self.graph_pad = nn.GraphPad()
+    self.encoder_stages = len(self.encoder_blk_nums)
+    self.decoder_stages = len(self.decoder_blk_nums)
 
     # encoder
+    n_node_types = [self.n_node_type - i for i in range(self.encoder_stages)]
     self.conv1 = nn.GraphConvNormRelu(
         in_channels, self.encoder_channels[0], self.n_edge_type,
-        self.n_node_type, self.group, self.norm_type)
+        n_node_types[0], self.group, self.norm_type)
+    self.encoder_blks = torch.nn.ModuleList([nn.GraphResBlocks(
+        self.encoder_channels[i], self.encoder_channels[i],
+        self.n_edge_type, n_node_types[i], self.group, self.norm_type,
+        self.bottleneck, self.encoder_blk_nums[i], self.resblk_type)
+        for i in range(self.encoder_stages)])
     self.downsample = torch.nn.ModuleList([nn.GraphDownsample(
         self.encoder_channels[i], self.encoder_channels[i+1], self.group,
-        self.norm_type) for i in range(self.encoder_stages)])
-    self.encoder = torch.nn.ModuleList([nn.GraphResBlocks(
-        self.encoder_channels[i+1], self.encoder_channels[i+1],
-        self.n_edge_type, self.n_node_type, self.group, self.norm_type,
-        self.bottleneck, self.encoder_blocks[i], self.resblk_type)
-        for i in range(self.encoder_stages)])
+        self.norm_type) for i in range(self.encoder_stages-1)])
 
     # decoder
-    channels = [self.decoder_channels[i+1] + self.encoder_channels[-i-2]
-                for i in range(self.decoder_stages)]
+    current_n_node_type = self.n_node_type - self.encoder_stages
+    n_node_types = [current_n_node_type + i for i in range(self.decoder_stages)]
     self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
         self.decoder_channels[i], self.decoder_channels[i+1], self.group,
         self.norm_type) for i in range(self.decoder_stages)])
-    self.decoder = torch.nn.ModuleList([nn.GraphResBlocks(
-        channels[i], self.decoder_channels[i+1],
-        self.n_edge_type, self.n_node_type, self.group, self.norm_type,
-        self.bottleneck, self.decoder_blocks[i], self.resblk_type)
+    self.decoder_blks = torch.nn.ModuleList([nn.GraphResBlocks(
+        self.decoder_channels[i+1], self.decoder_channels[i+1],
+        self.n_edge_type, n_node_types[i], self.group, self.norm_type,
+        self.bottleneck, self.decoder_blk_nums[i], self.resblk_type)
         for i in range(self.decoder_stages)])
 
     # header
@@ -61,23 +64,15 @@ class GraphOUNet(torch.nn.Module):
         [self._make_predict_module(self.decoder_channels[i], 4)
          for i in range(self.decoder_stages)])
 
-  # def _setup_channels_and_resblks(self):
-  #   # self.resblk_num = [3] * 7 + [1] + [1] * 9
-  #   self.resblk_num = [3] * 16
-  #   self.channels = [4, 512, 512, 256, 128, 64, 32, 32, 24]
-
   def config_network(self):
-    r''' Configure the network channels and Resblock numbers.
-    '''
-
-    self.encoder_channels = [32, 32, 64, 128, 256]
-    self.decoder_channels = [256, 256, 128, 96, 96]
-    self.encoder_blocks = [2, 3, 4, 6]
-    self.decoder_blocks = [2, 2, 2, 2]
     self.head_channel = 64
-    self.bottleneck = 1
+    self.group = 1    # for group normalization
     self.norm_type = 'batch_norm'
     self.resblk_type = 'bottleneck'
+    self.encoder_blk_nums = [3, 3, 3, 3]
+    self.decoder_blk_nums = [3, 3, 3, 3]
+    self.encoder_channels = [32, 32, 64, 128, 256]
+    self.decoder_channels = [256, 128, 64, 32, 32]
 
   def _make_predict_module(self, in_channels: int, out_channels: int = 2,
                            num_hidden: int = 32):
@@ -92,76 +87,81 @@ class GraphOUNet(torch.nn.Module):
     assert key.shape[0] == value.shape[0]
     return ocnn.nn.search_value(value, key, query)
 
-  def octree_encoder(self, octree: OctreeD, depth: int):
+  def encoder(self, octree: OctreeD, depth: int):
     convs = dict()  # graph convolution features
     data = octree.get_input_feature(feature='L')
     convs[depth] = self.conv1(data, octree, depth)
     for i in range(self.encoder_stages):
       d = depth - i
-      convd = self.downsample[i](convs[d], octree, d)
-      convs[d-1] = self.encoder[i](convd, octree, d-1)
+      convs[d] = self.encoder_blks[i](convs[d], octree, d)
+      if i < self.encoder_stages - 1:
+        convs[d-1] = self.downsample[i](convs[d], octree, d)
     return convs
 
-  def octree_decoder(self, convs: dict, octree_in: OctreeD, octree_out: OctreeD,
-                     depth_out: int, update_octree: bool = False):
+  def decoder(self, convs: dict, octree_in: OctreeD, octree_out: OctreeD,
+              depth_start: int, depth_end: int, update_octree: bool = False):
+    assert depth_end - depth_start + 1 == self.decoder_stages
 
-    logits = dict()
-    signals = dict()
-    deconvs = dict()
-
-    full_depth = octree_in.full_depth
-    deconv = convs[full_depth]
-    for i, d in enumerate(range(full_depth, depth_out+1)):
-      if d > self.full_depth:
-        deconv = self.upsample[i-1](deconv, octree_out, d-1)
-        skip = self._octree_align(convs[d], octree_in, octree_out, d)
-        deconv = deconv + skip  # output-guided skip connections
-      deconv = self.decoder[i](deconv, octree_out, d)
+    logits, signals = dict(), dict()
+    deconv = convs[depth_start]
+    for i in range(self.decoder_stages):
+      d = depth_start + i
+      deconv = self.decoder_blks[i](deconv, octree_out, d)
 
       # predict the splitting label and signal
       logit = self.predict[i](deconv)
       nnum = octree_out.nnum[d]
       logits[d] = logit[-nnum:]
 
+      # regress signals and pad zeros to non-leaf nodes
       signal = self.regress[i](deconv)
-      # pad zeros to reg_vox to reuse the original code for ocnn
-      node_mask = octree_out.graph[d]['node_mask']
-      shape = (node_mask.shape[0], signal.shape[1])
-      reg_vox_pad = torch.zeros(shape, device=signal.device)
-      reg_vox_pad[node_mask] = signal
-      signals[d] = reg_vox_pad
+      signals[d] = self.graph_pad(signal, octree_out, d)
+
+      if i < self.decoder_stages - 1:  # skip the last stage
+        deconv = self.upsample[i](deconv, octree_out, d)
+        skip = self._octree_align(convs[d], octree_in, octree_out, d)
+        deconv = deconv + skip  # output-guided skip connections
 
       # update the octree according to predicted labels
       if update_octree:
         split = logits[d].argmax(1).int()
         octree_out.octree_split(split, d)
-        if d < depth_out:
+        if d < depth_end:
           octree_out.octree_grow(d + 1)
 
-    return {'logits': logits, 'signals': signals, 'octree_out': octree_out}
+    return edict({'logits': logits, 'signals': signals})
 
-  def create_full_octree(self, octree_in: Octree):
-    device = octree_in.device
-    batch_size = octree_in.batch_size
-    octree = Octree(self.depth, self.full_depth, batch_size, device)
-    for d in range(self.full_depth+1):
-      octree.octree_grow_full(depth=d)
-    # doctree_out = dual_octree.DualOctree(octree_out)
-    # doctree_out.post_processing_for_docnn()
-    return octree
+  def create_full_octree(self, depth: int, octree: Octree):
+    octree = Octree(depth, octree.full_depth, octree.batch_size, octree.device)
+    for d in range(octree.full_depth+1):
+      octree.octree_grow_full(d)
+    octree_out = OctreeD(octree)
+    octree_out.build_dual_graph()
+    return octree_out
 
-  def forward(self, octree_in, octree_out, depth_out: int):
+  def forward(self, octree_in, octree_out, depth_out, pos = None):
     # generate dual octrees
     octree_in = OctreeD(octree_in)
-    octree_in.post_processing_for_docnn()
+    octree_in.build_dual_graph()
 
+    # initialize the output octree
     update_octree = octree_out is None
     if update_octree:
-      octree_out = self.create_full_octree(octree_in)
+      octree_out = self.create_full_octree(depth_out, octree_in)
 
     # run encoder and decoder
-    convs = self.octree_encoder(octree_in, octree_in.depth)
-    output = self.octree_decoder(
+    convs = self.encoder(octree_in, octree_in.depth)
+    output = self.decoder(
         convs, octree_in, octree_out, depth_out, update_octree)
+
+    # create the mpu wrapper
+    def _neural_mpu(pos):
+      pred = self.neural_mpu(pos, output.signal, octree_out, depth_out)
+      return pred[self.depth_out][0]
+    output['neural_mpu'] = _neural_mpu
+
+    # compute function value with mpu
+    if pos is not None:
+      output['mpus'] = _neural_mpu(pos)
 
     return output

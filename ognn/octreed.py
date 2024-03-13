@@ -37,6 +37,9 @@ class Graph:
   def edge_type(self):
     return self.edge_dir
 
+  @property
+  def node_mask(self):
+    return self.child < 0   # leaf node mask
 
 class OctreeD(Octree):
 
@@ -101,6 +104,13 @@ class OctreeD(Octree):
     self.dense_graph(self.full_depth)
     for depth in range(self.full_depth + 1, self.max_depth + 1):
       self.sparse_graph(depth)
+
+  def octree_grow(self, depth: int, update_neigh: bool = True):
+    super().octree_grow(depth, update_neigh)
+    if depth > self.full_depth:
+      self.sparse_graph(depth)
+    else:
+      self.dense_graph(depth)
 
   def dense_graph(self, depth: int = 3):
     K = 6  # each node has at most K neighboring node

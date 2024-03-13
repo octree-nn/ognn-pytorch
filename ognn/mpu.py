@@ -121,8 +121,9 @@ class NeuralMPU:
     return out
 
   def __call__(self, pts: torch.Tensor, features: torch.Tensor, octree: Octree,
-               depth_start: int, depth_end: int):
+               depth_end: int):
     fvals, mpus = dict(), dict()
+    depth_start = octree.full_depth
     for d in range(depth_start, depth_end+1):
       mpus[d] = self.perpare(octree, d, pts)
       fvals[d] = self.compute(pts, features[d], octree, mpus, depth_start, d)
