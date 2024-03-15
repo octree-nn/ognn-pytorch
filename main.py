@@ -70,7 +70,8 @@ class OGNSolver(Solver):
 
   def eval_step(self, batch):
     # forward the model
-    output = self.model.forward(batch['octree_in'].cuda())
+    depth_out = self.FLAGS.MODEL.depth_out
+    output = self.model.forward(batch['octree_in'].cuda(), depth_out)
 
     # extract the mesh
     filename = batch['filename'][0]

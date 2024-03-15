@@ -23,8 +23,9 @@ class Graph:
 
     self.batch_id = None
     self.node_depth = None
-    self.child = None
+    self.child = None       # the octree node has children or not
     self.key = None         # the bits from the 58th is the node depth
+    self.octree_mask = None # used to pad zeros for non-leaf nodes
 
     self.edge_idx = None    # the edge index in (i, j)
     self.edge_dir = None    # the dirction of the edge
@@ -37,28 +38,27 @@ class Graph:
   def edge_type(self):
     return self.edge_dir
 
-  @property
-  def node_mask(self):
-    return self.child < 0   # leaf node mask
 
 class OctreeD(Octree):
 
-  def __init__(self, octree: Octree, max_depth: Optional[int] = None, **kwargs):
+  def __init__(self, octree: Octree, **kwargs):
     super().__init__(octree.depth, octree.full_depth)
     self.__dict__.update(octree.__dict__)
 
     # node numbers for the octree
-    self.ncum = ocnn.utils.cumsum(self.nnum, dim=0, exclusive=True)
-    self.lnum = self.nnum - self.nnum_nempty  # leaf node numbers
-    self.lnum[self.depth] = self.nnum[self.depth]
+    self._set_node_num()
 
     # for the construction of the dual octree
-    self.max_depth = max_depth or self.depth
     self.graphs = [Graph() for _ in range(self.depth + 1)]
 
     # build the dual octree
     self._build_lookup_tables()
-    self.build_dual_graph()
+    # self.build_dual_graph()
+
+  def _set_node_num(self):
+    self.ncum = ocnn.utils.cumsum(self.nnum, dim=0, exclusive=True)
+    self.lnum = self.nnum - self.nnum_nempty  # leaf node numbers
+    self.lnum[self.depth] = self.nnum[self.depth]
 
   def _build_lookup_tables(self):
     self.ngh = torch.tensor(
@@ -100,10 +100,20 @@ class OctreeD(Octree):
   def empty_tensor(self):
     return torch.tensor([], dtype=torch.int64, device=self.device)
 
-  def build_dual_graph(self):
+  def build_dual_graph(self, max_depth: Optional[int] = None):
+    depth = max_depth or self.depth
     self.dense_graph(self.full_depth)
-    for depth in range(self.full_depth + 1, self.max_depth + 1):
-      self.sparse_graph(depth)
+    for d in range(self.full_depth + 1, depth + 1):
+      self.sparse_graph(d)
+
+  def octree_split(self, split: torch.Tensor, depth: int):
+    #  update self.children[depth], self.nnum_nempty[depth]
+    super().octree_split(split, depth)
+
+    # update the properties of the dual octree
+    self._set_node_num()
+    self.graphs[depth].child[-self.nnum[depth]:] = self.children[depth]
+
 
   def octree_grow(self, depth: int, update_neigh: bool = True):
     super().octree_grow(depth, update_neigh)
@@ -151,6 +161,8 @@ class OctreeD(Octree):
     graph.node_depth = torch.ones_like(node_key) * depth
     graph.key = torch.bitwise_or(node_key, graph.node_depth << graph.key_shift)
     graph.child = self.children[depth]
+    ones = torch.ones(self.nnum[depth], dtype=bool, device=self.device)
+    graph.octree_mask = ones
 
     # depth and node numbers
     graph.depth_max = depth
@@ -221,9 +233,11 @@ class OctreeD(Octree):
     graph_d.node_depth = torch.cat([graph.node_depth[leaf_mask], node_depth])
     graph_d.key = torch.cat([graph.key[leaf_mask], node_key])
     graph_d.child = torch.cat([graph.child[leaf_mask], self.children[depth]])
-
-    # remap the edge index since small nodes are removed
+    octree_mask = torch.cat(self.children[graph.depth_min:depth]) < 0
     ones = torch.ones(self.nnum[depth], dtype=bool, device=self.device)
+    graph_d.octree_mask = torch.cat([octree_mask, ones])
+
+    # remap the edge index since some nodes are removed
     mask = torch.cat([leaf_mask, ones], dim=0)
     remapper = torch.cumsum(mask.long(), dim=0) - 1
     graph_d.edge_idx = remapper[graph_d.edge_idx]
@@ -243,15 +257,16 @@ class OctreeD(Octree):
 
   def get_input_feature(self, all_leaf_nodes=True, feature='L'):
     # the initial feature of leaf nodes in the layer depth
-    data = ocnn.modules.InputFeature(feature, nempty=False)(self)
+    # data = ocnn.modules.InputFeature(feature, nempty=False)(self)
+    data = super().get_input_feature(feature)
 
     # to be consistent with the original code. TODO: remove this
-    flag = self.nempty_mask(self.depth).float()
+    flag = self.nempty_mask(self.depth).float().unsqueeze(1)
     data = torch.cat([data, flag * (2 / 3 ** 0.5), flag], dim=1)
 
     # concat zero features with the initial features in layer depth
     if all_leaf_nodes:
-      leaf_num = self.nnum - data.shape[0]
+      leaf_num = torch.sum(self.lnum[self.full_depth:-1])
       zeros = torch.zeros(leaf_num, data.shape[1], device=self.device)
       data = torch.cat([zeros, data], dim=0)
 

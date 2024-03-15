@@ -23,7 +23,7 @@ def get_model(flags):
   # if flags.name == 'octree_ounet':
   #   model = models.octree_ounet.OctreeOUNet(*params)
   if flags.name == 'graph_ounet':
-    model = ognn.GraphOUNet(flags.channel)
+    model = ognn.GraphOUNet(flags.channel, flags.resblock_type)
   # elif flags.name == 'graph_unet':
   #   model = models.graph_unet.GraphUNet(*params)
   # elif flags.name == 'graph_ae':
