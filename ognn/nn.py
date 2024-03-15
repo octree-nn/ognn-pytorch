@@ -143,7 +143,7 @@ class GraphPad(torch.nn.Module):
     octree_mask = octree.graphs[depth].octree_mask
     out = x.new_zeros(octree_mask.shape[0], x.shape[1])
     out[octree_mask] = x  # pad zeros for internal octree nodes
-    return x
+    return out
 
 
 class Conv1x1(torch.nn.Module):

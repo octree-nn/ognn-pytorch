@@ -68,7 +68,7 @@ class NeuralMPU:
     # rescale back the original scale.
     # after recaling, the coordsf is in the same scale as `pts``
     coordsf = coordsf * (2.0 / scale)   # [-1.0, 1.0] -> [-2.0/scale, 2.0/scale]
-    return edict({'ids': idx, 'idx': idx, 'xyzf': coordsf, 'weights': weights})
+    return edict({'ids': ids, 'idx': idx, 'xyzf': coordsf, 'weights': weights})
 
   def compute(self, pts: torch.Tensor, feature: torch.Tensor, octree: Octree,
               mpus: edict, depth_start: int, depth_end: int):
