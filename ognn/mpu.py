@@ -120,8 +120,12 @@ class NeuralMPU:
     out = torch.div(out, norm + 1e-8).squeeze()
     return out
 
-  def __call__(self, pts: torch.Tensor, features: torch.Tensor, octree: Octree,
-               depth_end: int):
+  def setup(self, features: torch.Tensor, octree: Octree, depth_end: int):
+    self.buffer = (features, octree, depth_end)
+
+  def __call__(self, pts: torch.Tensor):
+    features, octree, depth_end = self.buffer
+
     fvals, mpus = dict(), dict()
     depth_start = octree.full_depth
     for d in range(depth_start, depth_end+1):

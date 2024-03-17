@@ -128,39 +128,31 @@ class GraphOUNet(torch.nn.Module):
         if i < self.decoder_stages - 1:
           octree_out.octree_grow(d + 1)
 
-    return {'logits': logits, 'signals': signals}
+    return {'logits': logits, 'signals': signals, 'octree_out': octree_out}
 
-  def create_full_octree(self, depth: int, octree: Octree):
-    full_depth = octree.full_depth
-    octree = Octree(depth, full_depth, octree.batch_size, octree.device)
-    for d in range(full_depth + 1):
-      octree.octree_grow_full(d)
-    octree_out = OctreeD(octree)
-    octree_out.build_dual_graph(full_depth)
-    return octree_out
 
-  def forward(self, octree_in, depth_out, octree_out=None, pos = None):
+  def forward(self, octree_in: Octree, octree_out: Octree,
+              pos: torch.Tensor=None, update_octree: bool=False):
     # generate dual octrees
     octree_in = OctreeD(octree_in)
     octree_in.build_dual_graph()
-
-    # initialize the output octree
-    update_octree = octree_out is None
-    if update_octree:
-      octree_out = self.create_full_octree(depth_out, octree_in)
+    octree_out = OctreeD(octree_out)
+    octree_out.build_dual_graph()
 
     # run encoder and decoder
     convs = self.octree_encoder(octree_in)
     output = self.octree_decoder(convs, octree_in, octree_out, update_octree)
 
+    # setup mpu
+    self.neural_mpu.setup(output['signals'], octree_out, octree_out.depth)
+
     # compute function value with mpu
     if pos is not None:
-      output['mpus'] = self.neural_mpu(pos, output['signals'], octree_out, depth_out)
+      output['mpus'] = self.neural_mpu(pos)
 
     # create the mpu wrapper
     def _neural_mpu(pos):
-      pred = self.neural_mpu(pos, output['signals'], octree_out, depth_out)
-      return pred[depth_out]
+      pred = self.neural_mpu(pos)
+      return pred[octree_out.depth]
     output['neural_mpu'] = _neural_mpu
-
     return output

@@ -79,7 +79,7 @@ def possion_grad_loss(sdf, grad, sdf_gt, grad_gt, name_suffix=''):
 def compute_mpu_gradients(mpus, pos, fval_transform=None):
   grads = dict()
   for d in mpus.keys():
-    fval, flags = mpus[d]
+    fval = mpus[d]
     if fval_transform is not None:
       fval = fval_transform(fval)
     grads[d] = compute_gradient(fval, pos)[:, :3]
@@ -102,7 +102,7 @@ def compute_octree_loss(logits, octree_out: ocnn.octree.Octree):
 def compute_sdf_loss(mpus, grads, sdf_gt, grad_gt, reg_loss_func):
   output = dict()
   for d in mpus.keys():
-    sdf, flgs = mpus[d]  # TODO: tune the loss weights and `flgs`
+    sdf = mpus[d]  # TODO: tune the loss weights and `flgs`
     reg_loss = reg_loss_func(sdf, grads[d], sdf_gt, grad_gt, '_%d' % d)
     # if d < 3:  # ignore depth 2
     #   for key in reg_loss.keys():
@@ -138,7 +138,7 @@ def compute_occu_loss_1214(mpus, occu):
   outside = occu == 1
   output = dict()
   for d in mpus.keys():
-    sdf, flgs = mpus[d]
+    sdf = mpus[d]
 
     inside_loss = torch.mean(torch.relu(sdf[inside])) * (1000 * weights[d])
     outside_loss = torch.mean(torch.relu(-sdf[outside])) * (1000 * weights[d])
@@ -162,7 +162,7 @@ def compute_occu_loss(mpus, grads, occu, grad_gt):
 
   output = dict()
   for d in mpus.keys():
-    sdf, flgs = mpus[d]
+    sdf = mpus[d]
     grad = grads[d]
     grad_diff = grad[on_surf] - grad_gt[on_surf]
 
@@ -204,7 +204,7 @@ def compute_occu_loss_cls(mpus, grads, occu_gt, grad_gt):
 
   output = dict()
   for d in mpus.keys():
-    sdf, flgs = mpus[d]
+    sdf = mpus[d]
     grad = grads[d]
     grad_diff = grad[on_surf] - grad_gt[on_surf]
 

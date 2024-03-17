@@ -36,8 +36,8 @@ ACM Transactions on Graphics (SIGGRAPH), 41(4), 2022
 
 1. Install [Conda](https://www.anaconda.com/) and create a `Conda` environment.
     ```bash
-    conda create --name dualocnn python=3.7
-    conda activate dualocnn
+    conda create --name main python=3.7
+    conda activate main
     ```
 
 1. Install PyTorch-1.9.1 with conda according to the official documentation.
@@ -117,7 +117,7 @@ ACM Transactions on Graphics (SIGGRAPH), 41(4), 2022
    downloaded [here](https://www.dropbox.com/s/v3tnopnqxoqqbvb/shapenet_weights_log.zip?dl=1).
 
     ```bash
-    python dualocnn.py  --config configs/shapenet.yaml SOLVER.gpu 0,1,2,3
+    python main.py  --config configs/shapenet.yaml SOLVER.gpu 0,1,2,3
     ```
 
 2. **Test**: Run the following command to generate the extracted meshes. It is
@@ -125,7 +125,7 @@ ACM Transactions on Graphics (SIGGRAPH), 41(4), 2022
    after `SOLVER.ckpt`.
 
     ```bash
-    python dualocnn.py --config configs/shapenet_eval.yaml  \
+    python main.py --config configs/shapenet_eval.yaml  \
            SOLVER.ckpt logs/shapenet/shapenet/checkpoints/00300.model.pth
     ```
 
@@ -141,7 +141,7 @@ ACM Transactions on Graphics (SIGGRAPH), 41(4), 2022
    categories of ShapeNet:
 
     ```bash
-    python dualocnn.py --config configs/shapenet_unseen5.yaml  \
+    python main.py --config configs/shapenet_unseen5.yaml  \
            SOLVER.ckpt logs/shapenet/shapenet/checkpoints/00300.model.pth
     ```
 
@@ -173,13 +173,13 @@ python tools/room.py --run generate_dataset
    [here](https://www.dropbox.com/s/t9p8e8tg9rzeaeq/room_weights_log.zip?dl=1).
 
     ```bash
-    python dualocnn.py  --config configs/synthetic_room.yaml SOLVER.gpu 0,1,2,3
+    python main.py  --config configs/synthetic_room.yaml SOLVER.gpu 0,1,2,3
     ```
 
 2. **Test**: Run the following command to generate the extracted meshes.
 
     ```bash
-    python dualocnn.py --config configs/synthetic_room_eval.yaml  \
+    python main.py --config configs/synthetic_room_eval.yaml  \
         SOLVER.ckpt logs/room/room/checkpoints/00900.model.pth
     ```
 
@@ -218,7 +218,7 @@ python tools/room.py --run generate_dataset
    [here](https://www.dropbox.com/s/lyhr9n3b7uhjul8/dfaust_weights_log.zip?dl=0).
 
     ```bash
-    python dualocnn.py  --config configs/dfaust.yaml SOLVER.gpu 0,1,2,3
+    python main.py  --config configs/dfaust.yaml SOLVER.gpu 0,1,2,3
     ```
 
 
@@ -226,7 +226,7 @@ python tools/room.py --run generate_dataset
    weights.
 
     ```bash
-    python dualocnn.py --config configs/dfaust_eval.yaml  \
+    python main.py --config configs/dfaust_eval.yaml  \
            SOLVER.ckpt logs/dfaust/dfaust/checkpoints/00600.model.pth
     ```
 
@@ -261,7 +261,7 @@ and place the unzipped data to the folder `data/shapes`. Then run the following
 command to reproduce the results:
 
 ```bash
-python dualocnn.py --config configs/shapes.yaml  \
+python main.py --config configs/shapes.yaml  \
        SOLVER.ckpt logs/dfaust/dfaust/checkpoints/00600.model.pth  \
 ```
 
@@ -281,13 +281,13 @@ Following the instructions [here](#21-data-preparation) to prepare the dataset.
    [here](https://www.dropbox.com/s/3e4bx3zaj0b85kd/shapenet_ae_weights_log.zip?dl=1).
 
     ```bash
-    python dualocnn.py  --config configs/shapenet_ae.yaml SOLVER.gpu 0,1,2,3
+    python main.py  --config configs/shapenet_ae.yaml SOLVER.gpu 0,1,2,3
     ```
 
 2. **Test**: Run the following command to generate the extracted meshes.
 
     ```bash
-    python dualocnn.py --config configs/shapenet_ae_eval.yaml  \
+    python main.py --config configs/shapenet_ae_eval.yaml  \
            SOLVER.ckpt logs/shapenet/ae/checkpoints/00300.model.pth
     ```
 
@@ -306,7 +306,7 @@ Following the instructions [here](#21-data-preparation) to prepare the dataset.
 ## 6. Citation
 
 ```
-@article {Wang-2022-dualocnn,
+@article {Wang-2022-main,
   title      = {Dual Octree Graph Networks
                 for Learning Adaptive Volumetric Shape Representations},
   author     = {Wang, Peng-Shuai and Liu, Yang and Tong, Xin},

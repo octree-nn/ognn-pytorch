@@ -8,10 +8,12 @@
 import os
 import torch
 from thsolver import Solver
+from ocnn.octree import Octree
 
 import ognn
 import builder
 import utils
+
 
 class OGNSolver(Solver):
 
@@ -53,25 +55,12 @@ class OGNSolver(Solver):
     output = {'test/' + key: val for key, val in output.items()}
     return output
 
-  def extract_mesh(self, neural_mpu, filename, bbox=None):
-    # bbox used for marching cubes
-    if bbox is not None:
-      bbmin, bbmax = bbox[:3], bbox[3:]
-    else:
-      sdf_scale = self.FLAGS.SOLVER.sdf_scale
-      bbmin, bbmax = -sdf_scale, sdf_scale
-
-    # create mesh
-    utils.create_mesh(neural_mpu, filename,
-                      size=self.FLAGS.SOLVER.resolution,
-                      bbmin=bbmin, bbmax=bbmax,
-                      mesh_scale=self.FLAGS.DATA.test.point_scale,
-                      save_sdf=self.FLAGS.SOLVER.save_sdf)
-
   def eval_step(self, batch):
     # forward the model
     depth_out = self.FLAGS.MODEL.depth_out
-    output = self.model.forward(batch['octree_in'].cuda(), depth_out)
+    octree_in = batch['octree_in'].cuda()
+    octree_out = self.create_full_octree(depth_out, octree_in)
+    output = self.model.forward(octree_in, octree_out, update_octree=True)
 
     # extract the mesh
     filename = batch['filename'][0]
@@ -87,6 +76,30 @@ class OGNSolver(Solver):
     filename = filename[:-4] + '.input.ply'
     utils.points2ply(filename, batch['points_in'][0],
                      self.FLAGS.DATA.test.point_scale)
+
+  def create_full_octree(self, depth_out: int, octree: Octree):
+    full_depth = octree.full_depth
+    octree = Octree(depth_out, full_depth, octree.batch_size, octree.device)
+    for d in range(full_depth + 1):
+      octree.octree_grow_full(d)
+    # octree_out = OctreeD(octree)
+    # octree_out.build_dual_graph(full_depth)
+    return octree
+
+  def extract_mesh(self, neural_mpu, filename, bbox=None):
+    # bbox used for marching cubes
+    if bbox is not None:
+      bbmin, bbmax = bbox[:3], bbox[3:]
+    else:
+      sdf_scale = self.FLAGS.SOLVER.sdf_scale
+      bbmin, bbmax = -sdf_scale, sdf_scale
+
+    # create mesh
+    utils.create_mesh(neural_mpu, filename,
+                      size=self.FLAGS.SOLVER.resolution,
+                      bbmin=bbmin, bbmax=bbmax,
+                      mesh_scale=self.FLAGS.DATA.test.point_scale,
+                      save_sdf=self.FLAGS.SOLVER.save_sdf)
 
   def save_tensors(self, batch, output):
     iter_num = batch['iter_num']

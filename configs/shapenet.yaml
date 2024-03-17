@@ -35,13 +35,10 @@ DATA:
 
     # octree building
     depth: 6
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
+    point_scale: 0.5  # the scale of point clouds
 
     # sdf
-    point_scale: 0.5  # the scale of point clouds
     load_occu: False  # load occupancy samples
     point_sample_num: 10000
     sample_surf_points: False
@@ -62,13 +59,10 @@ DATA:
 
     # octree building
     depth: 6
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
+    point_scale: 0.5  # the scale of point clouds
 
     # sdf
-    point_scale: 0.5  # the scale of point clouds
     load_occu: False  # load occupancy samples
     point_sample_num: 10000
     sample_surf_points: False
@@ -89,10 +83,8 @@ MODEL:
   name: graph_ounet
 
   channel: 5
-  depth: 6
-  nout: 4
   depth_out: 6
-  full_depth: 3
+
   bottleneck: 4
   resblock_type: basic
 
