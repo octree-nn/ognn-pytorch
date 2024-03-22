@@ -10,8 +10,8 @@ import ocnn
 import torch
 import torch.nn.functional as F
 
-from .octreed import OctreeD
-from .utils import scatter_mean
+from ognn.octreed import OctreeD
+from ognn.utils import scatter_mean
 
 
 bn_momentum, bn_eps = 0.01, 0.001    # the default value of Tensorflow 1.x

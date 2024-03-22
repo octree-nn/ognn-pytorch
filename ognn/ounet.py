@@ -12,7 +12,6 @@ import torch.nn
 from ocnn.octree import Octree
 from ognn.octreed import OctreeD
 from ognn import mpu, nn
-from easydict import EasyDict as edict
 
 
 class GraphOUNet(torch.nn.Module):
@@ -144,15 +143,13 @@ class GraphOUNet(torch.nn.Module):
     output = self.octree_decoder(convs, octree_in, octree_out, update_octree)
 
     # setup mpu
-    self.neural_mpu.setup(output['signals'], octree_out, octree_out.depth)
+    depth_out = octree_out.depth
+    self.neural_mpu.setup(output['signals'], octree_out, depth_out)
 
     # compute function value with mpu
     if pos is not None:
       output['mpus'] = self.neural_mpu(pos)
 
     # create the mpu wrapper
-    def _neural_mpu(pos):
-      pred = self.neural_mpu(pos)
-      return pred[octree_out.depth]
-    output['neural_mpu'] = _neural_mpu
+    output['neural_mpu'] = lambda pos: self.neural_mpu(pos)[depth_out]
     return output

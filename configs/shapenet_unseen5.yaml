@@ -10,8 +10,11 @@ SOLVER:
   run: evaluate
   logdir: logs/shapenet_eval/unseen5
   ckpt: logs/shapenet/shapenet/checkpoints/00300.model.pth
-  sdf_scale: 0.9
-  resolution: 128
+
+  # sdf
+  resolution: 128       # the resolution used for marching cubes
+  save_sdf: False       # save the sdfs in evaluation
+  sdf_scale: 0.9        # the scale of sdfs
 
 
 DATA:
@@ -20,10 +23,7 @@ DATA:
 
     # octree building
     depth: 6
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
 
     # data augmentation, add noise only
     distort: True
@@ -42,10 +42,7 @@ MODEL:
   name: graph_ounet
 
   channel: 5
-  depth: 6
-  nout: 4
   depth_out: 6
-  full_depth: 3
-  bottleneck: 4
 
+  bottleneck: 4
   resblock_type: basic

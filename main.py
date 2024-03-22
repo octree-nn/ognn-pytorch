@@ -7,10 +7,9 @@
 
 import os
 import torch
+import ocnn
 from thsolver import Solver
-from ocnn.octree import Octree
 
-import ognn
 import builder
 import utils
 
@@ -59,7 +58,8 @@ class OGNSolver(Solver):
     # forward the model
     depth_out = self.FLAGS.MODEL.depth_out
     octree_in = batch['octree_in'].cuda()
-    octree_out = self.create_full_octree(depth_out, octree_in)
+    octree_out = ocnn.octree.init_octree(
+        depth_out, octree_in.full_depth, octree_in.batch_size, octree_in.device)
     output = self.model.forward(octree_in, octree_out, update_octree=True)
 
     # extract the mesh
@@ -69,50 +69,25 @@ class OGNSolver(Solver):
     filename = os.path.join(self.logdir, filename + '.obj')
     folder = os.path.dirname(filename)
     if not os.path.exists(folder): os.makedirs(folder)
-    bbox = batch['bbox'][0].numpy() if 'bbox' in batch else None
-    self.extract_mesh(output['neural_mpu'], filename, bbox)
+    bbmin, bbmax = self._get_bbox(batch)
+    utils.create_mesh(
+        output['neural_mpu'], filename, size=self.FLAGS.SOLVER.resolution,
+        bbmin=bbmin, bbmax=bbmax, mesh_scale=self.FLAGS.DATA.test.point_scale,
+        save_sdf=self.FLAGS.SOLVER.save_sdf)
 
     # save the input point cloud
     filename = filename[:-4] + '.input.ply'
     utils.points2ply(filename, batch['points_in'][0],
                      self.FLAGS.DATA.test.point_scale)
 
-  def create_full_octree(self, depth_out: int, octree: Octree):
-    full_depth = octree.full_depth
-    octree = Octree(depth_out, full_depth, octree.batch_size, octree.device)
-    for d in range(full_depth + 1):
-      octree.octree_grow_full(d)
-    # octree_out = OctreeD(octree)
-    # octree_out.build_dual_graph(full_depth)
-    return octree
-
-  def extract_mesh(self, neural_mpu, filename, bbox=None):
-    # bbox used for marching cubes
-    if bbox is not None:
+  def _get_bbox(self, batch):
+    if 'bbox' in batch:
+      bbox = batch['bbox'][0].numpy()
       bbmin, bbmax = bbox[:3], bbox[3:]
     else:
       sdf_scale = self.FLAGS.SOLVER.sdf_scale
       bbmin, bbmax = -sdf_scale, sdf_scale
-
-    # create mesh
-    utils.create_mesh(neural_mpu, filename,
-                      size=self.FLAGS.SOLVER.resolution,
-                      bbmin=bbmin, bbmax=bbmax,
-                      mesh_scale=self.FLAGS.DATA.test.point_scale,
-                      save_sdf=self.FLAGS.SOLVER.save_sdf)
-
-  def save_tensors(self, batch, output):
-    iter_num = batch['iter_num']
-    filename = os.path.join(self.logdir, '%04d.out.octree' % iter_num)
-    output['octree_out'].cpu().numpy().tofile(filename)
-    filename = os.path.join(self.logdir, '%04d.in.octree' % iter_num)
-    batch['octree_in'].cpu().numpy().tofile(filename)
-    filename = os.path.join(self.logdir, '%04d.in.points' % iter_num)
-    batch['points_in'][0].cpu().numpy().tofile(filename)
-    filename = os.path.join(self.logdir, '%04d.gt.octree' % iter_num)
-    batch['octree_gt'].cpu().numpy().tofile(filename)
-    filename = os.path.join(self.logdir, '%04d.gt.points' % iter_num)
-    batch['points_gt'][0].cpu().numpy().tofile(filename)
+    return bbmin, bbmax
 
 
 if __name__ == '__main__':
