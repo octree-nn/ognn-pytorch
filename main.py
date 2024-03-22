@@ -8,7 +8,9 @@
 import os
 import torch
 import ocnn
+
 from thsolver import Solver
+from ognn.octreed import OctreeD
 
 import builder
 import utils
@@ -37,7 +39,9 @@ class OGNSolver(Solver):
 
   def model_forward(self, batch):
     self.batch_to_cuda(batch)
-    model_out = self.model(batch['octree_in'], batch['octree_gt'], batch['pos'])
+    octree_in = OctreeD(batch['octree_in'])
+    octree_gt = OctreeD(batch['octree_gt'])
+    model_out = self.model(octree_in, octree_gt, batch['pos'])
 
     output = self.compute_loss(batch, model_out)
     losses = [val for key, val in output.items() if 'loss' in key]
@@ -57,9 +61,8 @@ class OGNSolver(Solver):
   def eval_step(self, batch):
     # forward the model
     depth_out = self.FLAGS.MODEL.depth_out
-    octree_in = batch['octree_in'].cuda()
-    octree_out = ocnn.octree.init_octree(
-        depth_out, octree_in.full_depth, octree_in.batch_size, octree_in.device)
+    octree_in = OctreeD(batch['octree_in'].cuda())
+    octree_out = self._init_octree_out(octree_in, depth_out)
     output = self.model.forward(octree_in, octree_out, update_octree=True)
 
     # extract the mesh
@@ -79,6 +82,12 @@ class OGNSolver(Solver):
     filename = filename[:-4] + '.input.ply'
     utils.points2ply(filename, batch['points_in'][0],
                      self.FLAGS.DATA.test.point_scale)
+
+  def _init_octree_out(self, octree_in, depth_out):
+    full_depth = octree_in.full_depth  # grow octree to full_depth
+    octree_out = ocnn.octree.init_octree(
+        depth_out, full_depth, octree_in.batch_size, octree_in.device)
+    return OctreeD(octree_out, full_depth)
 
   def _get_bbox(self, batch):
     if 'bbox' in batch:

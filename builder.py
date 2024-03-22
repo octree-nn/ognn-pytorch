@@ -5,7 +5,6 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-import ocnn
 
 import datasets
 import ognn

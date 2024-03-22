@@ -7,3 +7,6 @@
 
 from . import loss
 from .ounet import GraphOUNet
+
+
+__all__ = ['loss', 'GraphOUNet']

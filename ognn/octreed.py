@@ -19,16 +19,16 @@ class Graph:
     self.key_shift = 58
     self.depth_min = None
     self.depth_max = None
-    self.nnum = None        # the total node number
+    self.nnum = None         # the total node number
 
     self.batch_id = None
     self.node_depth = None
-    self.child = None       # the octree node has children or not
-    self.key = None         # the bits from the 58th is the node depth
-    self.octree_mask = None # used to pad zeros for non-leaf nodes
+    self.child = None        # the octree node has children or not
+    self.key = None          # the bits from the 58th is the node depth
+    self.octree_mask = None  # used to pad zeros for non-leaf nodes
 
-    self.edge_idx = None    # the edge index in (i, j)
-    self.edge_dir = None    # the dirction of the edge
+    self.edge_idx = None     # the edge index in (i, j)
+    self.edge_dir = None     # the dirction of the edge
 
   @property
   def node_type(self):
@@ -41,7 +41,7 @@ class Graph:
 
 class OctreeD(Octree):
 
-  def __init__(self, octree: Octree, **kwargs):
+  def __init__(self, octree: Octree, max_depth: Optional[int] = None, **kwargs):
     super().__init__(octree.depth, octree.full_depth)
     self.__dict__.update(octree.__dict__)
 
@@ -53,7 +53,7 @@ class OctreeD(Octree):
 
     # build the dual octree
     self._build_lookup_tables()
-    # self.build_dual_graph()
+    self.build_dual_graph(max_depth)
 
   def _set_node_num(self):
     self.ncum = ocnn.utils.cumsum(self.nnum, dim=0, exclusive=True)
@@ -113,7 +113,6 @@ class OctreeD(Octree):
     # update the properties of the dual octree
     self._set_node_num()
     self.graphs[depth].child[-self.nnum[depth]:] = self.children[depth]
-
 
   def octree_grow(self, depth: int, update_neigh: bool = True):
     super().octree_grow(depth, update_neigh)

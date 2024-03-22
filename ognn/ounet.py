@@ -9,9 +9,8 @@ import ocnn
 import torch
 import torch.nn
 
-from ocnn.octree import Octree
-from ognn.octreed import OctreeD
 from ognn import mpu, nn
+from ognn.octreed import OctreeD
 
 
 class GraphOUNet(torch.nn.Module):
@@ -48,7 +47,7 @@ class GraphOUNet(torch.nn.Module):
     n_node_type = self.n_node_type - self.encoder_stages + 1
     n_node_types = [n_node_type + i for i in range(self.decoder_stages)]
     self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
-        self.decoder_channels[i - 1], self.decoder_channels[i],self.group,
+        self.decoder_channels[i - 1], self.decoder_channels[i], self.group,
         self.norm_type) for i in range(1, self.decoder_stages)])
     self.decoder = torch.nn.ModuleList([nn.GraphResBlocks(
         self.decoder_channels[i], self.decoder_channels[i],
@@ -58,11 +57,11 @@ class GraphOUNet(torch.nn.Module):
 
     # header
     self.predict = torch.nn.ModuleList([
-         self._make_predict_module(self.decoder_channels[i], 2)
-         for i in range(self.decoder_stages)])
+        self._make_predict_module(self.decoder_channels[i], 2)
+        for i in range(self.decoder_stages)])
     self.regress = torch.nn.ModuleList([
-         self._make_predict_module(self.decoder_channels[i], 4)
-         for i in range(self.decoder_stages)])
+        self._make_predict_module(self.decoder_channels[i], 4)
+        for i in range(self.decoder_stages)])
 
   def config_network(self):
     self.head_channel = 64
@@ -129,15 +128,8 @@ class GraphOUNet(torch.nn.Module):
 
     return {'logits': logits, 'signals': signals, 'octree_out': octree_out}
 
-
-  def forward(self, octree_in: Octree, octree_out: Octree,
-              pos: torch.Tensor=None, update_octree: bool=False):
-    # generate dual octrees
-    octree_in = OctreeD(octree_in)
-    octree_in.build_dual_graph()
-    octree_out = OctreeD(octree_out)
-    octree_out.build_dual_graph()
-
+  def forward(self, octree_in: OctreeD, octree_out: OctreeD,
+              pos: torch.Tensor = None, update_octree: bool = False):
     # run encoder and decoder
     convs = self.octree_encoder(octree_in)
     output = self.octree_decoder(convs, octree_in, octree_out, update_octree)
