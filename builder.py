@@ -25,8 +25,8 @@ def get_model(flags):
     model = ognn.GraphOUNet(flags.channel, flags.resblock_type)
   # elif flags.name == 'graph_unet':
   #   model = models.graph_unet.GraphUNet(*params)
-  # elif flags.name == 'graph_ae':
-  #   model = models.graph_ae.GraphAE(*params)
+  elif flags.name == 'graph_ae':
+    model = ognn.GraphAE(flags.channel, flags.resblock_type)
   else:
     raise ValueError
   return model

@@ -14,6 +14,7 @@ SOLVER:
   test_every_epoch: 20
   log_per_iter: 50
   ckpt_num: 40
+  port: 10001
 
   # optimizer
   type: adamw
@@ -24,18 +25,26 @@ SOLVER:
   lr_type: poly
   step_size: (160,240)
 
+  # sdf
+  resolution: 128       # the resolution used for marching cubes
+  save_sdf: False       # save the sdfs in evaluation
+  sdf_scale: 0.9        # the scale of sdfs
+
 DATA:
   train:
     name: shapenet
 
     # octree building
     depth: 6
-    offset: 0.0
-    full_depth: 2
-    node_dis: True
-    split_label: True
+    full_depth: 3
+    point_scale: 0.5  # the scale of point clouds
 
-    # no data augmentation
+    # sdf
+    load_occu: False  # load occupancy samples
+    point_sample_num: 10000
+    sample_surf_points: False
+
+    # data augmentation
     distort: False
 
     # data loading
@@ -51,13 +60,16 @@ DATA:
 
     # octree building
     depth: 6
-    offset: 0.0
-    full_depth: 2
-    node_dis: True
-    split_label: True
+    full_depth: 3
+    point_scale: 0.5  # the scale of point clouds
 
-    # no data augmentation
-    distort: False
+    # sdf
+    load_occu: False  # load occupancy samples
+    point_sample_num: 10000
+    sample_surf_points: False
+
+    # data augmentation, add noise only
+    distort: True
 
     # data loading
     location: data/ShapeNet/dataset
@@ -71,11 +83,9 @@ DATA:
 MODEL:
   name: graph_ae
 
-  channel: 4
-  depth: 6
-  nout: 4
+  channel: 5
   depth_out: 6
-  full_depth: 2
+
   bottleneck: 4
   resblock_type: basic
 
