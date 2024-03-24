@@ -80,8 +80,9 @@ class OGNSolver(Solver):
 
     # save the input point cloud
     filename = filename[:-4] + '.input.ply'
-    utils.points2ply(filename, batch['points_in'][0],
-                     self.FLAGS.DATA.test.point_scale)
+    points = batch['points_in'][0]
+    points[:, :3] *= self.FLAGS.DATA.test.point_scale
+    utils.points2ply(filename, batch['points_in'][0])
 
   def _init_octree_out(self, octree_in, depth_out):
     full_depth = octree_in.full_depth  # grow octree to full_depth

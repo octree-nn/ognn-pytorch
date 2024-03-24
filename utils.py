@@ -168,8 +168,8 @@ def calc_chamfer(filename_gt, filename_pred, point_num):
   return chamfer_a, chamfer_b
 
 
-def points2ply(filename, points, scale=1.0):
-  xyz = points[:, :3] * scale
+def points2ply(filename, points):
+  xyz = points[:, :3]
   if points.shape[1] > 3:
     has_normal = True
     normal = points[:, 3:]

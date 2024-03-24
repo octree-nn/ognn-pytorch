@@ -24,6 +24,7 @@ DATA:
     # octree building
     depth: 6
     full_depth: 3
+    point_scale: 0.5  # the scale of point clouds
 
     # data augmentation, add noise only
     distort: True
@@ -33,6 +34,8 @@ DATA:
     filelist: data/ShapeNet/filelist/test_unseen5.txt
     batch_size: 1
     load_sdf: False
+    load_occu: False
+    sample_surf_points: False
     shuffle: False
     in_memory: False
     # num_workers: 0

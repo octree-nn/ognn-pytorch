@@ -5,8 +5,6 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-import torch
-
 from ognn import nn
 from ognn.ounet import GraphOUNet
 from ognn.octreed import OctreeD

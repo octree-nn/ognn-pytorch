@@ -62,7 +62,7 @@ class TransformShape:
       octree_in = octree_gt
 
     # construct the output dict
-    return {'octree_in': octree_in, 'points_in': points_in,
+    return {'octree_in': octree_in, 'points_in': points_in.points,
             'octree_gt': octree_gt, 'points_gt': points_gt}
 
   def sample_sdf(self, sample):
