@@ -10,9 +10,12 @@ SOLVER:
   run: evaluate
   logdir: logs/shapenet_eval/ae
   ckpt: logs/shapenet/ae/checkpoints/00300.model.pth
-  sdf_scale: 0.9
-  resolution: 160
 
+
+  # sdf
+  resolution: 160       # the resolution used for marching cubes
+  save_sdf: False       # save the sdfs in evaluation
+  sdf_scale: 0.9        # the scale of sdfs
 
 DATA:
   test:
@@ -20,12 +23,15 @@ DATA:
 
     # octree building
     depth: 6
-    offset: 0.0
-    full_depth: 2
-    node_dis: True
-    split_label: True
+    full_depth: 3
+    point_scale: 0.5  # the scale of point clouds
 
-    # no data augmentation
+    # sdf
+    load_occu: False  # load occupancy samples
+    sample_surf_points: False
+    load_sdf: False
+
+    # data augmentation, add noise only
     distort: False
 
     # data loading
@@ -33,18 +39,15 @@ DATA:
     filelist: data/ShapeNet/filelist/test_im.txt
     batch_size: 1
     shuffle: False
-    load_sdf: False
     # num_workers: 0
 
 
 MODEL:
   name: graph_ae
 
-  channel: 4
-  depth: 6
-  nout: 4
+  channel: 5
   depth_out: 6
-  full_depth: 2
+
   bottleneck: 4
   resblock_type: basic
 
