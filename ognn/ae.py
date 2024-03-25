@@ -47,12 +47,12 @@ class GraphAE(GraphOUNet):
         deconv = self.decoder[i-1](deconv, octree_out, d)
 
       # predict the splitting label and signal
-      logit = self.predict[i](deconv)
+      logit = self.predict[i](deconv, octree_out, d)
       nnum = octree_out.nnum[d]
       logits[d] = logit[-nnum:]
 
       # regress signals and pad zeros to non-leaf nodes
-      signal = self.regress[i](deconv)
+      signal = self.regress[i](deconv, octree_out, d)
       signals[d] = self.graph_pad(signal, octree_out, d)
 
       # update the octree according to predicted labels

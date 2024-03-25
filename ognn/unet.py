@@ -12,8 +12,9 @@ from ognn.ounet import GraphOUNet
 
 
 class GraphUNet(GraphOUNet):
-  def __init__(self, in_channels: int, resblk_type: str = 'basic'):
-    super().__init__(in_channels, resblk_type)
+  def __init__(self, in_channels: int, resblk_type: str = 'basic',
+               feature: str = 'ND'):
+    super().__init__(in_channels, resblk_type, feature)
     self.predict = None
 
   def config_network(self):
@@ -37,7 +38,7 @@ class GraphUNet(GraphOUNet):
         deconv = self.decoder[i-1](deconv, octree, d)
 
       # regress signals and pad zeros to non-leaf nodes
-      signal = self.regress[i](deconv)
+      signal = self.regress[i](deconv, octree, d)
       signals[d] = self.graph_pad(signal, octree, d)
 
     return {'signals': signals}
