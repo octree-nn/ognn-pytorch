@@ -62,7 +62,8 @@ MODEL:
   resblock_type: basic
   # find_unused_parameters: True
 
-  channel: 5
+  feature: ND
+  channel: 4
   depth_out: 8
 
 LOSS:

@@ -259,9 +259,9 @@ class OctreeD(Octree):
     # data = ocnn.modules.InputFeature(feature, nempty=False)(self)
     data = super().get_input_feature(feature)
 
-    # to be consistent with the original code. TODO: remove this
-    flag = self.nempty_mask(self.depth).float().unsqueeze(1)
-    data = torch.cat([data, flag * (2 / 3 ** 0.5), flag], dim=1)
+    # # to be consistent with the original code. TODO: remove this
+    # flag = self.nempty_mask(self.depth).float().unsqueeze(1)
+    # data = torch.cat([data, flag * (2 / 3 ** 0.5), flag], dim=1)
 
     # concat zero features with the initial features in layer depth
     if all_leaf_nodes:

@@ -34,12 +34,12 @@ DATA:
     # num_workers: 0
 
 
+
 MODEL:
   name: graph_unet
   resblock_type: basic
+  # find_unused_parameters: True
 
-  depth: 8
-  full_depth: 3
-  depth_out: 8
+  feature: ND
   channel: 4
-  nout: 4
+  depth_out: 8

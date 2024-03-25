@@ -5,7 +5,6 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-import ocnn
 import torch
 import numpy as np
 from plyfile import PlyData

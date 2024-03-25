@@ -2,13 +2,22 @@
 # sample_pts.py, sample_occu.py, sample_sdf.py
 
 ## Train the completion network with graph_outnet
-python completion.py  \
+python main.py  \
        --config configs/shapenet.yaml  \
        SOLVER.alias ref
 
+python main.py  \
+       --config configs/shapenet.yaml  \
+       SOLVER.gpu 4,5,6,7  \
+       SOLVER.alias b8_lr5e-4_0325  \
+       DATA.train.batch_size 8   \
+       DATA.test.batch_size 4   \
+       SOLVER.lr 0.0005  \
+       SOLVER.port 10002
+
 
 ## Test the completion network with graph_outnet
-python completion.py  \
+python main.py  \
        --config configs/shapenet_eval.yaml  \
        MODEL.name graph_ounet  \
        DATA.test.name shapenet  \
@@ -20,7 +29,7 @@ python completion.py  \
 
 ## Generate shapes with trained weights
 name=1220_ep300_poly_resblk2_weight1
-python completion.py  \
+python main.py  \
       --config configs/shapenet_eval.yaml  \
       MODEL.name graph_ounet  \
       MODEL.resblock_type basic \
@@ -31,7 +40,7 @@ python completion.py  \
       SOLVER.eval_step -1
 
 name=1221_ep300_poly_resblk2_octree_ounet
-python completion.py  \
+python main.py  \
       --config configs/shapenet_eval.yaml  \
       MODEL.name octree_ounet  \
       SOLVER.ckpt logs/shapenet/${name}/checkpoints/00300.model.pth  \

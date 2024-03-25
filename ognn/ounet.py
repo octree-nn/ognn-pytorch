@@ -15,11 +15,13 @@ from ognn.octreed import OctreeD
 
 class GraphOUNet(torch.nn.Module):
 
-  def __init__(self, in_channels: int, resblk_type: str = 'basic'):
+  def __init__(self, in_channels: int, resblk_type: str = 'basic',
+               feature: str = 'L'):
     super().__init__()
     self.bottleneck = 4
     self.n_edge_type = 7
     self.head_channel = 64
+    self.feature = feature
     self.in_channels = in_channels
     self.resblk_type = resblk_type
     self.config_network()
@@ -88,7 +90,7 @@ class GraphOUNet(torch.nn.Module):
   def octree_encoder(self, octree: OctreeD):
     convs = dict()  # graph convolution features
     depth = octree.depth
-    data = octree.get_input_feature(feature='L')
+    data = octree.get_input_feature(feature=self.feature)
     convs[depth] = self.conv1(data, octree, depth)
     for i in range(self.encoder_stages):
       d = depth - i

@@ -11,12 +11,13 @@ import ognn
 
 
 def get_model(flags):
+  params = [flags.channel, flags.resblock_type, flags.feature]
   if flags.name == 'graph_ounet':
-    model = ognn.GraphOUNet(flags.channel, flags.resblock_type)
+    model = ognn.GraphOUNet(*params)
   elif flags.name == 'graph_unet':
-    model = ognn.GraphUNet(flags.channel, flags.resblock_type)
+    model = ognn.GraphUNet(*params)
   elif flags.name == 'graph_ae':
-    model = ognn.GraphAE(flags.channel, flags.resblock_type)
+    model = ognn.GraphAE(*params)
   else:
     raise ValueError
   return model

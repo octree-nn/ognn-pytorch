@@ -44,7 +44,8 @@ DATA:
 MODEL:
   name: graph_ounet
 
-  channel: 5
+  feature: L
+  channel: 3
   depth_out: 6
 
   bottleneck: 4
