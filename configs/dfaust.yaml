@@ -29,13 +29,11 @@ DATA:
   train:
     name: pointcloud
     point_scale: 1.0
+    point_sample_num: 10000
 
     # octree building
     depth: 8
     full_depth: 3
-    node_dis: True
-    split_label: True
-    offset: 0.0
 
     # data loading
     location: data/dfaust/dataset
@@ -46,13 +44,11 @@ DATA:
   test:
     name: pointcloud
     point_scale: 1.0
+    point_sample_num: 10000
 
     # octree building
     depth: 8
     full_depth: 3
-    node_dis: True
-    split_label: True
-    offset: 0.0
 
     # data loading
     location: data/dfaust/dataset
@@ -66,11 +62,8 @@ MODEL:
   resblock_type: basic
   find_unused_parameters: True
 
-  depth: 8
-  full_depth: 3
+  channel: 5
   depth_out: 8
-  channel: 4
-  nout: 4
 
 LOSS:
   name: dfaust

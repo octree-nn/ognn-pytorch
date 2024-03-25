@@ -19,7 +19,7 @@ class GraphOUNet(torch.nn.Module):
     super().__init__()
     self.bottleneck = 4
     self.n_edge_type = 7
-    self.n_node_type = 5
+    self.head_channel = 64
     self.in_channels = in_channels
     self.resblk_type = resblk_type
     self.config_network()
@@ -64,8 +64,8 @@ class GraphOUNet(torch.nn.Module):
         for i in range(self.decoder_stages)])
 
   def config_network(self):
-    self.head_channel = 64
     self.group = 1    # for group normalization
+    self.n_node_type = 5
     self.norm_type = 'batch_norm'
     self.encoder_blk_nums = [3, 3, 3, 3]
     self.decoder_blk_nums = [3, 3, 3, 3]
