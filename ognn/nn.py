@@ -14,9 +14,6 @@ from ognn.octreed import OctreeD
 from ognn.utils import scatter_mean
 
 
-bn_momentum, bn_eps = 0.01, 0.001    # the default value of Tensorflow 1.x
-
-
 class GraphConv(torch.nn.Module):
 
   def __init__(self, in_channels: int, out_channels: int, n_edge_type: int = 7,
@@ -79,6 +76,7 @@ class GraphConv(torch.nn.Module):
 
 
 class GraphNorm(torch.nn.Module):
+
   def __init__(self, in_channels: int, group: int = 1,
                norm_type: str = 'batch_norm'):
     super().__init__()
@@ -86,7 +84,7 @@ class GraphNorm(torch.nn.Module):
     self.in_channels = in_channels
     self.norm_type = norm_type
     if self.norm_type == 'batch_norm':
-      self.norm = torch.nn.BatchNorm1d(in_channels, bn_eps, bn_momentum)
+      self.norm = torch.nn.BatchNorm1d(in_channels)  # , bn_eps, bn_momentum)
     elif self.norm_type == 'group_norm':
       self.norm = ocnn.nn.OctreeGroupNorm(in_channels, group)
     else:
@@ -108,12 +106,13 @@ class GraphConvNorm(torch.nn.Module):
                n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm'):
     super().__init__()
     self.conv = GraphConv(in_channels, out_channels, n_edge_type, n_node_type)
-    # self.bn = GraphNorm(out_channels, group, norm_type)
-    self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
+    self.norm = GraphNorm(out_channels, group, norm_type)
+    # self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     out = self.conv(x, octree, depth)
-    out = self.bn(out) #, octree, depth)
+    out = self.norm(out, octree, depth)
+    # out = self.bn(out)
     return out
 
 
@@ -123,13 +122,14 @@ class GraphConvNormRelu(torch.nn.Module):
                n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm'):
     super().__init__()
     self.conv = GraphConv(in_channels, out_channels, n_edge_type, n_node_type)
-    # self.norm = GraphNorm(out_channels, group, norm_type)
-    self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
+    self.norm = GraphNorm(out_channels, group, norm_type)
+    # self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
     self.relu = torch.nn.ReLU(inplace=True)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     out = self.conv(x, octree, depth)
-    out = self.bn(out) #, octree, depth)
+    out = self.norm(out, octree, depth)
+    # out = self.bn(out)
     out = self.relu(out)
     return out
 
@@ -162,13 +162,13 @@ class Conv1x1Norm(torch.nn.Module):
                norm_type: str = 'batch_norm'):
     super().__init__()
     self.conv = Conv1x1(in_channels, out_channels, use_bias=False)
-    # self.norm = GraphNorm(out_channels, group, norm_type)
-    self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
-
+    self.norm = GraphNorm(out_channels, group, norm_type)
+    # self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     out = self.conv(x)
-    out = self.bn(out) #, octree, depth)
+    out = self.norm(out, octree, depth)
+    # out = self.bn(out) #, octree, depth)
     return out
 
 
@@ -178,16 +178,30 @@ class Conv1x1NormRelu(torch.nn.Module):
                norm_type: str = 'batch_norm'):
     super().__init__()
     self.conv = Conv1x1(in_channels, out_channels, use_bias=False)
-    # self.norm = GraphNorm(out_channels, group, norm_type)
-    self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
+    self.norm = GraphNorm(out_channels, group, norm_type)
+    # self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
     self.relu = torch.nn.ReLU(inplace=True)
 
-  # def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
-  def forward(self, x: torch.Tensor):
+  def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     out = self.conv(x)
-    out = self.bn(out) #, octree, depth)
+    out = self.norm(out, octree, depth)
+    # out = self.bn(out)
     out = self.relu(out)
     return out
+
+
+class Prediction(torch.nn.Module):
+
+  def __init__(self, in_channels: int, mid_channels: int, out_channels: int,
+               group: int = 1, norm_type: str = 'batch_norm'):
+    super().__init__()
+    self.conv1 = Conv1x1NormRelu(in_channels, mid_channels, group, norm_type)
+    self.conv2 = Conv1x1(mid_channels, out_channels, use_bias=True)
+
+  def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
+    x = self.conv1(x, octree, depth)
+    x = self.conv2(x)
+    return x
 
 
 class Upsample(torch.nn.Module):
@@ -197,7 +211,7 @@ class Upsample(torch.nn.Module):
     self.in_channels = in_channels
     self.weights = torch.nn.Parameter(torch.Tensor(in_channels, in_channels, 8))
     torch.nn.init.xavier_uniform_(self.weights)
-    # TODO: use bias
+    # TODO: add bias
 
   def forward(self, x: torch.Tensor):
     out = x @ self.weights.flatten(1)
@@ -254,12 +268,13 @@ class GraphDownsample(torch.nn.Module):
     out = torch.cat([x[:-leaf_num-numd], out], dim=0)
 
     if self.in_channels != self.out_channels:
-      out = self.conv1x1(out)
+      out = self.conv1x1(out, octree, depth + 1)
     return out
 
   def extra_repr(self):
     return 'in_channels={}, out_channels={}'.format(
         self.in_channels, self.out_channels)
+
 
 class GraphUpsample(torch.nn.Module):
 
@@ -283,12 +298,13 @@ class GraphUpsample(torch.nn.Module):
     # construct the final output
     out = torch.cat([x[:-numd], outd[leaf_mask], out1], dim=0)
     if self.in_channels != self.out_channels:
-      out = self.conv1x1(out)
+      out = self.conv1x1(out, octree, depth - 1)
     return out
 
   def extra_repr(self):
     return 'in_channels={}, out_channels={}'.format(
         self.in_channels, self.out_channels)
+
 
 class GraphResBlock2(torch.nn.Module):
 
@@ -362,7 +378,7 @@ class GraphResBlocks(torch.nn.Module):
     ResBlk = self._get_resblock(resblk_type)
     self.resblks = torch.nn.ModuleList([ResBlk(channels[i], channels[i+1],
         n_edge_type, n_node_type, group, norm_type, bottleneck)
-        for i in range(self.resblk_num)])
+        for i in range(self.resblk_num)])  # noqa
 
   def _get_resblock(self, resblk_type):
     if resblk_type == 'bottleneck':

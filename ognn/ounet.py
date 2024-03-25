@@ -58,11 +58,12 @@ class GraphOUNet(torch.nn.Module):
         for i in range(1, self.decoder_stages)])
 
     # header
-    self.predict = torch.nn.ModuleList([
-        self._make_predict_module(self.decoder_channels[i], 2)
+    mid_channels = 32
+    self.predict = torch.nn.ModuleList([nn.Prediction(
+        self.decoder_channels[i], mid_channels, 2, self.group, self.norm_type)
         for i in range(self.decoder_stages)])
-    self.regress = torch.nn.ModuleList([
-        self._make_predict_module(self.decoder_channels[i], 4)
+    self.regress = torch.nn.ModuleList([nn.Prediction(
+        self.decoder_channels[i], mid_channels, 4, self.group, self.norm_type)
         for i in range(self.decoder_stages)])
 
   def config_network(self):
@@ -73,12 +74,6 @@ class GraphOUNet(torch.nn.Module):
     self.decoder_blk_nums = [3, 3, 3, 3]
     self.encoder_channels = [32, 64, 128, 256]
     self.decoder_channels = [256, 128, 64, 32]
-
-  def _make_predict_module(self, in_channels: int, out_channels: int = 2,
-                           num_hidden: int = 32):
-    return torch.nn.Sequential(
-        nn.Conv1x1NormRelu(in_channels, num_hidden, self.group, self.norm_type),
-        nn.Conv1x1(num_hidden, out_channels, use_bias=True))
 
   def _octree_align(self, value: torch.Tensor, octree: OctreeD,
                     octree_query: OctreeD, depth: int):
@@ -113,12 +108,12 @@ class GraphOUNet(torch.nn.Module):
         deconv = self.decoder[i-1](deconv, octree_out, d)
 
       # predict the splitting label and signal
-      logit = self.predict[i](deconv)
+      logit = self.predict[i](deconv, octree_out, d)
       nnum = octree_out.nnum[d]
       logits[d] = logit[-nnum:]
 
       # regress signals and pad zeros to non-leaf nodes
-      signal = self.regress[i](deconv)
+      signal = self.regress[i](deconv, octree_out, d)
       signals[d] = self.graph_pad(signal, octree_out, d)
 
       # update the octree according to predicted labels
