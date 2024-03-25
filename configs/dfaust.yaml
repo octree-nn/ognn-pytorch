@@ -60,7 +60,7 @@ DATA:
 MODEL:
   name: graph_unet
   resblock_type: basic
-  find_unused_parameters: True
+  # find_unused_parameters: True
 
   channel: 5
   depth_out: 8

@@ -298,7 +298,7 @@ Following the instructions [here](#21-data-preparation) to prepare the dataset.
     python tools/compute_metrics.py  \
            --mesh_folder logs/shapenet_eval/ae  \
            --filelist data/ShapeNet/filelist/test_im.txt \
-           --ref_folder data/ShapeNet/mesh  \
+           --ref_folder data/ShapeNet/mesh.test.im  \
            --num_samples 4096 \
            --filename_out logs/shapenet_eval/ae/metrics.4096.csv
     ```
