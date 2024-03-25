@@ -9,6 +9,7 @@ import math
 import ocnn
 import torch
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 from ognn.octreed import OctreeD
 from ognn.utils import scatter_mean
@@ -371,9 +372,11 @@ class GraphResBlocks(torch.nn.Module):
 
   def __init__(self, in_channels: int, out_channels: int, n_edge_type: int = 7,
                n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm',
-               bottleneck: int = 4, resblk_num: int = 1, resblk_type: str = 'basic'):
+               bottleneck: int = 4, resblk_num: int = 1, resblk_type: str = 'basic',
+               use_checkpoint: bool = True):
     super().__init__()
     self.resblk_num = resblk_num
+    self.use_checkpoint = use_checkpoint
     channels = [in_channels] + [out_channels] * resblk_num
     ResBlk = self._get_resblock(resblk_type)
     self.resblks = torch.nn.ModuleList([ResBlk(channels[i], channels[i+1],
@@ -390,5 +393,8 @@ class GraphResBlocks(torch.nn.Module):
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     for i in range(self.resblk_num):
-      x = self.resblks[i](x, octree, depth)
+      if self.use_checkpoint and self.training:
+        x = checkpoint(self.resblks[i], x, octree, depth)
+      else:
+        x = self.resblks[i](x, octree, depth)
     return x
