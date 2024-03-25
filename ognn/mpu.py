@@ -33,12 +33,12 @@ class NeuralMPU:
     xyzf = (xyzf + 1.0) * (scale / 2.0)    # [-1, 1] -> [0, scale]
     xyzf = xyzf - 0.5                      # the code is defined on the center
     xyzi = torch.floor(xyzf).detach()      # the integer part (N, 3), use floor
-    corners = xyzi.unsqueeze(1) + mask  # (N, 8, 3)
-    coordsf = xyzf.unsqueeze(1) - corners    # (N, 8, 3), in [-1.0, 1.0]
+    corners = xyzi.unsqueeze(1) + mask     # (N, 8, 3)
+    coordsf = xyzf.unsqueeze(1) - corners  # (N, 8, 3), in [-1.0, 1.0]
 
     # coorers -> key -> the indices of neighboring octree nodes
     xyz = corners.view(-1, 3)
-    ids = ids.detach().repeat(1, self.kNN).view(-1)       # (N, 8, 1) -> (N*8, )
+    ids = ids.detach().repeat(1, self.kNN).view(-1)  # (N, 8, 1) -> (N*8, )
     key = xyz2key(xyz[:, 0], xyz[:, 1], xyz[:, 2], ids, depth)
     idx = octree.search_key(key, depth)
 
@@ -100,24 +100,23 @@ class NeuralMPU:
     output = self.spmm(indices, weights, npt, feature.size(0), feature, xyzfs)
     return output
 
-  def spmm(self, index, value, m, n, matrix, xyzf):
+  def spmm(self, index, weights, m, n, feature, xyzf):
     row, col = index
-    assert n == matrix.size(-2)
-    matrix = matrix if matrix.dim() > 1 else matrix.unsqueeze(-1)
+    assert n == feature.size(0)
+    feature = feature if feature.dim() > 1 else feature.unsqueeze(-1)
 
-    out = matrix.index_select(-2, col)
-    ones = torch.ones((xyzf.shape[0], 1), device=xyzf.device)
-    xyz1 = torch.cat([xyzf, ones], dim=1)
-    out = torch.sum(out * xyz1, dim=1, keepdim=True)
-    out = out * value.unsqueeze(-1)
-    out = scatter_add(out, row, dim=-2, dim_size=m)
+    k = xyzf.shape[0]  # number of non-zero elements of the sparse matrix
+    ones = torch.ones((k, 1), device=xyzf.device)
+    xyz1 = torch.cat([xyzf, ones], dim=1).unsqueeze(1)   # (K, 1, 4)
+    out = feature.index_select(0, col).view(k, -1, 4)    # (K, C, 4)
+    out = torch.sum(out * xyz1, dim=2, keepdim=False)    # (K, C)
+    out = out * weights.unsqueeze(1)                     # (K, C) * (K, 1)
+    out = scatter_add(out, row, dim=0, dim_size=m)       # (M, C)
 
-    ones = torch.ones(n, 1, device=matrix.device)
-    norm = ones.index_select(0, col)
-    norm = norm * value.unsqueeze(-1)
-    norm = scatter_add(norm, row, dim=-2, dim_size=m)
+    norm = ones * weights.unsqueeze(1)                   # (K, 1) * (K, 1)
+    norm = scatter_add(norm, row, dim=0, dim_size=m)     # (M, 1)
 
-    out = torch.div(out, norm + 1e-8).squeeze()
+    out = torch.div(out, norm + 1e-8).squeeze()          # (M, C)
     return out
 
   def setup(self, features: torch.Tensor, octree: Octree, depth_end: int):
