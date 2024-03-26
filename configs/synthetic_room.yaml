@@ -28,10 +28,7 @@ DATA:
 
     # octree building
     depth: 7
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
 
     # data augmentation, add noise only
     distort: True
@@ -51,10 +48,7 @@ DATA:
 
     # octree building
     depth: 7
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
 
     # data augmentation, add noise only
     distort: True
@@ -72,13 +66,13 @@ DATA:
 MODEL:
   name: graph_ounet
 
-  channel: 5
-  depth: 7
-  nout: 4
+  in_channels: 3
+  resblk_type: basic
+  feature: L
+  norm_type: batch_norm
+  group: 1
+
   depth_out: 7
-  full_depth: 3
-  bottleneck: 4
-  resblock_type: basic
 
 LOSS:
   name: synthetic_room

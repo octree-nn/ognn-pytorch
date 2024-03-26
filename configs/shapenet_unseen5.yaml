@@ -44,9 +44,10 @@ DATA:
 MODEL:
   name: graph_ounet
 
+  in_channels: 3
+  resblk_type: basic
   feature: L
-  channel: 3
-  depth_out: 6
+  norm_type: batch_norm
+  group: 1
 
-  bottleneck: 4
-  resblock_type: basic
+  depth_out: 6

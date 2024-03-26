@@ -36,10 +36,12 @@ DATA:
 
 MODEL:
   name: graph_unet
-  resblock_type: basic
 
-  depth: 8
-  full_depth: 3
+  in_channels: 4
+  resblk_type: basic
+  feature: ND
+  norm_type: batch_norm
+  group: 1
+
   depth_out: 8
-  channel: 4
-  nout: 4
+

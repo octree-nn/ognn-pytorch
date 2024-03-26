@@ -11,13 +11,19 @@ import ognn
 
 
 def get_model(flags):
-  params = [flags.channel, flags.resblock_type, flags.feature]
+  # def __init__(self, in_channels: int, resblk_type: str = 'basic',
+  #              feature: str = 'L', norm_type: str = 'batch_norm',
+  #              group: int = 1, **kwargs):
+
+  params = {'in_channels': flags.in_channels, 'resblk_type': flags.resblk_type,
+            'feature': flags.feature, 'norm_type': flags.norm_type,
+            'group': flags.group}
   if flags.name == 'graph_ounet':
-    model = ognn.GraphOUNet(*params)
+    model = ognn.GraphOUNet(**params)
   elif flags.name == 'graph_unet':
-    model = ognn.GraphUNet(*params)
+    model = ognn.GraphUNet(**params)
   elif flags.name == 'graph_ae':
-    model = ognn.GraphAE(*params)
+    model = ognn.GraphAE(**params)
   else:
     raise ValueError
   return model

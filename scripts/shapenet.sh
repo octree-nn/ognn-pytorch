@@ -32,7 +32,7 @@ name=1220_ep300_poly_resblk2_weight1
 python main.py  \
       --config configs/shapenet_eval.yaml  \
       MODEL.name graph_ounet  \
-      MODEL.resblock_type basic \
+      MODEL.resblk_type basic \
       SOLVER.ckpt logs/shapenet/${name}/checkpoints/00300.model.pth  \
       SOLVER.alias ${name}  \
       SOLVER.sdf_scale 0.9  \

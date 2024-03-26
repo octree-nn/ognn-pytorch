@@ -16,14 +16,17 @@ from ognn.octreed import OctreeD
 class GraphOUNet(torch.nn.Module):
 
   def __init__(self, in_channels: int, resblk_type: str = 'basic',
-               feature: str = 'L'):
+               feature: str = 'L', norm_type: str = 'batch_norm',
+               group: int = 1, **kwargs):
     super().__init__()
     self.bottleneck = 4
     self.n_edge_type = 7
     self.head_channel = 64
-    self.feature = feature
     self.in_channels = in_channels
     self.resblk_type = resblk_type
+    self.feature = feature
+    self.group = group   # for group normalization
+    self.norm_type = norm_type
     self.config_network()
 
     self.neural_mpu = mpu.NeuralMPU()
@@ -67,9 +70,7 @@ class GraphOUNet(torch.nn.Module):
         for i in range(self.decoder_stages)])
 
   def config_network(self):
-    self.group = 1    # for group normalization
     self.n_node_type = 5
-    self.norm_type = 'batch_norm'
     self.encoder_blk_nums = [3, 3, 3, 3]
     self.decoder_blk_nums = [3, 3, 3, 3]
     self.encoder_channels = [32, 64, 128, 256]

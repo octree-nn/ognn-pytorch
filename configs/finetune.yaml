@@ -19,7 +19,7 @@ SOLVER:
   # optimizer
   type: adamw
   weight_decay: 0.01  # default value of adamw
-  lr: 0.0001          
+  lr: 0.0001
 
   # learning rate
   lr_type: constant
@@ -49,14 +49,15 @@ DATA:
 
 MODEL:
   name: graph_unet
-  resblock_type: basic
-  find_unused_parameters: True
 
-  depth: 8
-  full_depth: 3
+  in_channels: 4
+  resblk_type: basic
+  feature: ND
+  norm_type: batch_norm
+  group: 1
+
   depth_out: 8
-  channel: 4
-  nout: 4
+
 
 LOSS:
   name: dfaust

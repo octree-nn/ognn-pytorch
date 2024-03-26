@@ -59,11 +59,13 @@ DATA:
 
 MODEL:
   name: graph_unet
-  resblock_type: basic
-  # find_unused_parameters: True
 
+  in_channels: 4
+  resblk_type: basic
   feature: ND
-  channel: 4
+  norm_type: batch_norm
+  group: 1
+
   depth_out: 8
 
 LOSS:

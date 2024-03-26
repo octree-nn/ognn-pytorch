@@ -13,8 +13,9 @@ from ognn.octreed import OctreeD
 class GraphAE(GraphOUNet):
 
   def __init__(self, in_channels: int, resblk_type: str = 'basic',
-               code_channel: int = 8):
-    super().__init__(in_channels, resblk_type)
+               feature: str = 'L', norm_type: str = 'batch_norm',
+               group: int = 1, code_channel: int = 8, **kwargs):
+    super().__init__(in_channels, resblk_type, feature, norm_type, group)
 
     # reduce the code channel for fair comparison; if the code is of high
     # dimension, the performance will be significantly better

@@ -25,7 +25,7 @@ name=1218_ep900_poly_d7_basic_cls
 python completion.py  \
       --config configs/synthetic_room_eval.yaml  \
       MODEL.name graph_ounet  \
-      MODEL.resblock_type basic \
+      MODEL.resblk_type basic \
       SOLVER.gpu 0, \
       SOLVER.resolution 200 \
       SOLVER.sdf_scale 0.9  \

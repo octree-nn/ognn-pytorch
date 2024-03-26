@@ -13,8 +13,9 @@ from ognn.ounet import GraphOUNet
 
 class GraphUNet(GraphOUNet):
   def __init__(self, in_channels: int, resblk_type: str = 'basic',
-               feature: str = 'ND'):
-    super().__init__(in_channels, resblk_type, feature)
+               feature: str = 'L', norm_type: str = 'batch_norm',
+               group: int = 1, **kwargs):
+    super().__init__(in_channels, resblk_type, feature, norm_type, group)
     self.predict = None
 
   def config_network(self):
