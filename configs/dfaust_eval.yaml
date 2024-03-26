@@ -10,21 +10,21 @@ SOLVER:
   run: evaluate
   logdir: logs/dfaust_eval/dfaust
   ckpt: logs/dfaust/dfaust/checkpoints/00600.model.pth
+
   resolution: 300
   sdf_scale: 0.9
+  save_sdf: False       # save the sdfs in evaluation
 
 
 DATA:
   test:
     name: pointcloud
     point_scale: 1.0
+    point_sample_num: 10000
 
     # octree building
     depth: 8
     full_depth: 3
-    node_dis: True
-    split_label: True
-    offset: 0.0
 
     # data loading
     location: data/dfaust/dataset
@@ -32,7 +32,6 @@ DATA:
     batch_size: 1
     shuffle: False
     # num_workers: 0
-
 
 
 MODEL:

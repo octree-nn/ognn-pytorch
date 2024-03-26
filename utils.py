@@ -5,7 +5,6 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-import ocnn
 import torch
 import torch.autograd
 import numpy as np
@@ -66,7 +65,7 @@ def make_contour_plot(array_2d, mode='log'):
 
   sample = np.flipud(array_2d)
   CS = ax.contourf(sample, levels=levels, colors=colors)
-  cbar = fig.colorbar(CS)
+  fig.colorbar(CS)
 
   ax.contour(sample, levels=levels, colors='k', linewidths=0.1)
   ax.contour(sample, levels=[0], colors='k', linewidths=0.3)

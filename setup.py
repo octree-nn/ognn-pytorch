@@ -13,7 +13,7 @@ with open("README.md", "r", encoding="utf-8") as fid:
   long_description = fid.read()
 
 setup(
-    name='thsolver',
+    name='ognn',
     version=__version__,
     author='Peng-Shuai Wang',
     author_email='wangps@hotmail.com',
@@ -24,7 +24,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['torch', 'numpy', 'ocnn'],
+    install_requires=['torch', 'numpy', 'ocnn', 'easydict'],
     python_requires='>=3.6',
     license='MIT',
     classifiers=[
