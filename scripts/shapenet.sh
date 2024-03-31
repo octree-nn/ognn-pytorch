@@ -1,20 +1,7 @@
-## Dataset
-# sample_pts.py, sample_occu.py, sample_sdf.py
-
 ## Train the completion network with graph_outnet
 python main.py  \
        --config configs/shapenet.yaml  \
        SOLVER.alias ref
-
-python main.py  \
-       --config configs/shapenet.yaml  \
-       SOLVER.gpu 4,5,6,7  \
-       SOLVER.alias b8_lr5e-4_0325  \
-       DATA.train.batch_size 8   \
-       DATA.test.batch_size 4   \
-       SOLVER.lr 0.0005  \
-       SOLVER.port 10002
-
 
 ## Test the completion network with graph_outnet
 python main.py  \
@@ -50,19 +37,16 @@ python main.py  \
       SOLVER.eval_step -1
 
 
-## Rename meshes
-python tools/rename_meshes.py  \
-       --filelist data/ShapeNet/filelist/all_test.txt  \
-       --folder_in logs/shapenet_eval/all_${name}  \
-       --folder_out logs/shapenet_eval/all_${name}_mesh
-
-
 ## Evaluate meshes
 python eval_meshes.py  \
        configs/pointcloud/shapenet_grid32.yaml  \
        --suffix obj   \
        --generation_dir /mnt/logs/docnn/shapenet_eval/all_${name}_mesh
 
+python eval_meshes.py  \
+        configs/pointcloud/shapenet.yaml  \
+        --dataset_folder /home/wangps/workspace/ognn-pytorch/data/ShapeNet/dataset  \
+        --generation_dir /home/wangps/workspace/ognn-pytorch/logs/shapenet_eval/test_checkpoint_0327
 
 ## Visualize SDFs
 python tools/visualize_sdf.py  \

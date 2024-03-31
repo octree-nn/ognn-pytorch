@@ -14,7 +14,7 @@ def get_model(flags):
   params = {
       'in_channels': flags.in_channels, 'resblk_type': flags.resblk_type,
       'feature': flags.feature, 'norm_type': flags.norm_type,
-      flags.act_type: flags.act_type, 'group': flags.group}
+      'act_type': flags.act_type, 'group': flags.group}
   if flags.name == 'graph_ounet':
     model = ognn.GraphOUNet(**params)
   elif flags.name == 'graph_unet':

@@ -291,7 +291,7 @@ class GraphDownsample(torch.nn.Module):
     out = torch.cat([x[:-leaf_num-numd], out], dim=0)
 
     if self.in_channels != self.out_channels:
-      out = self.conv1x1(out, octree, depth + 1)
+      out = self.conv1x1(out, octree, depth - 1)
     return out
 
   def extra_repr(self):
@@ -322,7 +322,7 @@ class GraphUpsample(torch.nn.Module):
     # construct the final output
     out = torch.cat([x[:-numd], outd[leaf_mask], out1], dim=0)
     if self.in_channels != self.out_channels:
-      out = self.conv1x1(out, octree, depth - 1)
+      out = self.conv1x1(out, octree, depth + 1)
     return out
 
   def extra_repr(self):
@@ -407,7 +407,7 @@ class GraphResBlocks(torch.nn.Module):
     channels = [in_channels] + [out_channels] * resblk_num
     ResBlk = self._get_resblock(resblk_type)
     self.resblks = torch.nn.ModuleList([ResBlk(channels[i], channels[i+1],
-        n_edge_type, n_node_type, group, norm_type, bottleneck)
+        n_edge_type, n_node_type, group, norm_type, act_type, bottleneck)
         for i in range(self.resblk_num)])  # noqa
 
   def _get_resblock(self, resblk_type):
