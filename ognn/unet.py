@@ -12,16 +12,17 @@ from ognn.ounet import GraphOUNet
 
 
 class GraphUNet(GraphOUNet):
-  def __init__(self, in_channels: int, resblk_type: str = 'basic',
-               feature: str = 'L', norm_type: str = 'batch_norm',
-               group: int = 1, **kwargs):
-    super().__init__(in_channels, resblk_type, feature, norm_type, group)
+
+  def __init__(
+          self, in_channels: int, resblk_type: str = 'basic',
+          feature: str = 'L', norm_type: str = 'batch_norm',
+          act_type: str = 'relu', group: int = 1, **kwargs):
+    super().__init__(
+        in_channels, resblk_type, feature, norm_type, act_type, group)
     self.predict = None
 
   def config_network(self):
-    self.group = 1    # for group normalization
     self.n_node_type = 7
-    self.norm_type = 'batch_norm'
     self.encoder_blk_nums = [2, 2, 2, 2, 2, 2]
     self.decoder_blk_nums = [2, 2, 2, 2, 2, 2]
     self.encoder_channels = [32, 32, 32, 64, 128, 256]
