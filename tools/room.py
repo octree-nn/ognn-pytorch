@@ -162,7 +162,7 @@ def download_test_points():
 
 
 def generate_dataset():
-  download_and_unzip()
+  # download_and_unzip()
   download_filelist()
   # generate_test_points()
   download_test_points()

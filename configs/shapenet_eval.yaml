@@ -42,8 +42,8 @@ MODEL:
   in_channels: 3
   resblk_type: basic
   feature: L
-  norm_type: batch_norm
+  norm_type: group_norm
   act_type: relu
-  group: 1
+  group: 4
 
   depth_out: 6

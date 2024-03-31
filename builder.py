@@ -9,6 +9,15 @@
 import datasets
 import ognn
 
+class GraphOUNetR(ognn.GraphOUNet):
+
+  def config_network(self):
+    self.n_node_type = 5
+    self.encoder_blk_nums = [3, 3, 3, 3, 3]
+    self.decoder_blk_nums = [3, 3, 3, 3, 3]
+    self.encoder_channels = [32, 64, 128, 256, 256]
+    self.decoder_channels = [256, 256, 128, 64, 32]
+
 
 def get_model(flags):
   params = {
@@ -17,6 +26,8 @@ def get_model(flags):
       'act_type': flags.act_type, 'group': flags.group}
   if flags.name == 'graph_ounet':
     model = ognn.GraphOUNet(**params)
+  elif flags.name == 'graph_ounetr':
+    model = GraphOUNetR(**params)
   elif flags.name == 'graph_unet':
     model = ognn.GraphUNet(**params)
   elif flags.name == 'graph_ae':

@@ -36,27 +36,17 @@ ACM Transactions on Graphics (SIGGRAPH), 41(4), 2022
 
 1. Install [Conda](https://www.anaconda.com/) and create a `Conda` environment.
     ```bash
-    conda create --name main python=3.7
-    conda activate main
+    conda create --name ognn python=3.9
+    conda activate ognn
     ```
 
-1. Install PyTorch-1.9.1 with conda according to the official documentation.
-    ```bash
-    conda install pytorch==1.9.1 torchvision==0.10.1 cudatoolkit=10.2 -c pytorch
-    ```
+2. Install PyTorch>=1.9.1 with conda according to the official documentation.
 
-2. Install `ocnn-pytorch` from [O-CNN](https://github.com/microsoft/O-CNN).
-    ```bash
-    git clone https://github.com/microsoft/O-CNN.git
-    cd O-CNN/pytorch
-    pip install -r requirements.txt
-    python setup.py install --build_octree
-    ```
 
 3. Clone this repository and install other requirements.
     ```bash
-    git clone --recursive https://github.com/wang-ps/dual-ocnn.git
-    cd  DualOctreeGNN
+    git clone --recursive https://github.com/octree-nn/ognn-pytorch.git
+    cd  ognn-pytorch
     pip install -r requirements.txt
     ```
 

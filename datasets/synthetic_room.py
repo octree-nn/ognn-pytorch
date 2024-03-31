@@ -6,7 +6,6 @@
 # --------------------------------------------------------
 
 import os
-import ocnn
 import torch
 import numpy as np
 
@@ -18,7 +17,7 @@ from .shapenet import TransformShape
 class TransformScene(TransformShape):
 
   def __init__(self, flags):
-    self.flags = flags
+    super().__init__(flags)
 
     self.point_sample_num = 10000
     self.occu_sample_num = 4096
@@ -27,7 +26,6 @@ class TransformScene(TransformShape):
     self.points_scale = 0.6  # the points are actually in [-0.55, 0.55]
     self.noise_std = 0.005
     self.pos_weight = 10
-    self.points2octree = ocnn.Points2Octree(**flags)
 
   def sample_occu(self, sample):
     points, occus = sample['points'], sample['occupancies']

@@ -45,7 +45,6 @@ DATA:
   test:
     name: synthetic_room
 
-
     # octree building
     depth: 7
     full_depth: 3
@@ -64,7 +63,7 @@ DATA:
 
 
 MODEL:
-  name: graph_ounet
+  name: graph_ounetr
 
   in_channels: 3
   resblk_type: basic
