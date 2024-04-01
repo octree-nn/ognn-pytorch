@@ -15,10 +15,9 @@ from ognn.octreed import OctreeD
 
 class GraphOUNet(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, resblk_type: str = 'basic',
-          feature: str = 'L', norm_type: str = 'batch_norm',
-          act_type: str = 'relu', group: int = 1, **kwargs):
+  def __init__(self, in_channels: int, resblk_type: str = 'basic',
+               feature: str = 'L', norm_type: str = 'batch_norm',
+               act_type: str = 'relu', **kwargs):
     super().__init__()
     self.bottleneck = 4
     self.n_edge_type = 7
@@ -26,7 +25,6 @@ class GraphOUNet(torch.nn.Module):
     self.in_channels = in_channels
     self.resblk_type = resblk_type
     self.feature = feature
-    self.group = group   # for group normalization
     self.norm_type = norm_type
     self.act_type = act_type
     self.config_network()
@@ -40,35 +38,35 @@ class GraphOUNet(torch.nn.Module):
     n_node_types = [self.n_node_type - i for i in range(self.encoder_stages)]
     self.conv1 = nn.GraphConvNormAct(
         in_channels, self.encoder_channels[0], self.n_edge_type,
-        n_node_types[0], self.group, self.norm_type, self.act_type)
+        n_node_types[0], self.norm_type, self.act_type)
     self.encoder = torch.nn.ModuleList([nn.GraphResBlocks(
         self.encoder_channels[i], self.encoder_channels[i],
-        self.n_edge_type, n_node_types[i], self.group, self.norm_type,
+        self.n_edge_type, n_node_types[i], self.norm_type,
         self.act_type, self.bottleneck, self.encoder_blk_nums[i],
         self.resblk_type) for i in range(self.encoder_stages)])
     self.downsample = torch.nn.ModuleList([nn.GraphDownsample(
-        self.encoder_channels[i], self.encoder_channels[i+1], self.group,
+        self.encoder_channels[i], self.encoder_channels[i+1],
         self.norm_type, self.act_type) for i in range(self.encoder_stages - 1)])
 
     # decoder
     n_node_type = self.n_node_type - self.encoder_stages + 1
     n_node_types = [n_node_type + i for i in range(self.decoder_stages)]
     self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
-        self.decoder_channels[i - 1], self.decoder_channels[i], self.group,
+        self.decoder_channels[i - 1], self.decoder_channels[i],
         self.norm_type, self.act_type) for i in range(1, self.decoder_stages)])
     self.decoder = torch.nn.ModuleList([nn.GraphResBlocks(
         self.decoder_channels[i], self.decoder_channels[i],
-        self.n_edge_type, n_node_types[i], self.group, self.norm_type,
+        self.n_edge_type, n_node_types[i], self.norm_type,
         self.act_type, self.bottleneck, self.decoder_blk_nums[i],
         self.resblk_type) for i in range(1, self.decoder_stages)])
 
     # header
     mid_channels = 32
     self.predict = torch.nn.ModuleList([nn.Prediction(
-        self.decoder_channels[i], mid_channels, 2, self.group, self.norm_type,
+        self.decoder_channels[i], mid_channels, 2, self.norm_type,
         self.act_type) for i in range(self.decoder_stages)])
     self.regress = torch.nn.ModuleList([nn.Prediction(
-        self.decoder_channels[i], mid_channels, 4, self.group, self.norm_type,
+        self.decoder_channels[i], mid_channels, 4, self.norm_type,
         self.act_type) for i in range(self.decoder_stages)])
 
   def config_network(self):

@@ -65,7 +65,6 @@ MODEL:
   feature: ND
   norm_type: batch_norm
   act_type: relu
-  group: 1
 
   depth_out: 8
 

@@ -44,6 +44,5 @@ MODEL:
   feature: L
   norm_type: group_norm
   act_type: relu
-  group: 4
 
   depth_out: 6

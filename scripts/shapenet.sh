@@ -1,15 +1,18 @@
 ## Train
-alias=ref_0401
+alias=group_norm_0402
 python main.py  \
        --config configs/shapenet.yaml  \
        SOLVER.gpu 0,1,2,3  \
        SOLVER.port 10001   \
-       SOLVER.alias ${alias}
+       SOLVER.alias ${alias} \
+       MODEL.norm_type group_norm  \
+       MODEL.act_type gelu
 
 ## Test
 python main.py  \
+       --config configs/shapenet_eval.yaml  \
        SOLVER.ckpt logs/shapenet/shapenet_${alias}/checkpoints/00300.model.pth \
-       SLOVER.gpu 0,  \
+       SOLVER.gpu 0,  \
        SOLVER.alias ${alias}
 
 

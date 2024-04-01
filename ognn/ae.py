@@ -12,13 +12,11 @@ from ognn.octreed import OctreeD
 
 class GraphAE(GraphOUNet):
 
-  def __init__(
-          self, in_channels: int, resblk_type: str = 'basic',
-          feature: str = 'L', norm_type: str = 'batch_norm',
-          act_type: str = 'relu', group: int = 1, code_channel: int = 8,
-          **kwargs):
+  def __init__(self, in_channels: int, resblk_type: str = 'basic',
+               feature: str = 'L', norm_type: str = 'batch_norm',
+               act_type: str = 'relu', code_channel: int = 8, **kwargs):
     super().__init__(
-        in_channels, resblk_type, feature, norm_type, act_type, group)
+        in_channels, resblk_type, feature, norm_type, act_type)
 
     # reduce the code channel for fair comparison; if the code is of high
     # dimension, the performance will be significantly better
@@ -26,10 +24,10 @@ class GraphAE(GraphOUNet):
     # code_dim = self.code_channel * 2 ** (3 * full_depth)
 
     self.project1 = nn.Conv1x1NormAct(
-        self.encoder_channels[-1], self.code_channel, self.group,
+        self.encoder_channels[-1], self.code_channel,
         self.norm_type, self.act_type)
     self.project2 = nn.Conv1x1NormAct(
-        self.code_channel, self.decoder_channels[0], self.group,
+        self.code_channel, self.decoder_channels[0],
         self.norm_type, self.act_type)
 
   def octree_encoder(self, octree: OctreeD):

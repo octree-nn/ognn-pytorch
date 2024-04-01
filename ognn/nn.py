@@ -97,16 +97,22 @@ class GraphConv(torch.nn.Module):
 
 class GraphNorm(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, group: int = 1, norm_type: str = 'batch_norm'):
+  def __init__(self, in_channels: int, norm_type: str = 'batch_norm'):
     super().__init__()
 
     self.in_channels = in_channels
     self.norm_type = norm_type
+
+    self.group = 32
+    self.min_group_channels = 4
+    if self.min_group_channels * self.group > in_channels:
+      self.group = in_channels // self.min_group_channels
+    assert in_channels % self.group == 0
+
     if self.norm_type == 'batch_norm':
       self.norm = torch.nn.BatchNorm1d(in_channels)  # , bn_eps, bn_momentum)
     elif self.norm_type == 'group_norm':
-      self.norm = ocnn.nn.OctreeGroupNorm(in_channels, group)
+      self.norm = ocnn.nn.OctreeGroupNorm(in_channels, self.group)
     else:
       raise ValueError
 
@@ -124,10 +130,10 @@ class GraphConvNorm(torch.nn.Module):
 
   def __init__(
           self, in_channels: int, out_channels: int, n_edge_type: int = 7,
-          n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm'):
+          n_node_type: int = 0, norm_type: str = 'batch_norm'):
     super().__init__()
     self.conv = GraphConv(in_channels, out_channels, n_edge_type, n_node_type)
-    self.norm = GraphNorm(out_channels, group, norm_type)
+    self.norm = GraphNorm(out_channels, norm_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     out = self.conv(x, octree, depth)
@@ -139,11 +145,11 @@ class GraphConvNormAct(torch.nn.Module):
 
   def __init__(
           self, in_channels: int, out_channels: int, n_edge_type: int = 7,
-          n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm',
+          n_node_type: int = 0, norm_type: str = 'batch_norm',
           act_type: str = 'relu'):
     super().__init__()
     self.conv = GraphConv(in_channels, out_channels, n_edge_type, n_node_type)
-    self.norm = GraphNorm(out_channels, group, norm_type)
+    self.norm = GraphNorm(out_channels, norm_type)
     self.act = Activation(act_type=act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
@@ -178,12 +184,11 @@ class Conv1x1(torch.nn.Module):
 
 class Conv1x1Norm(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, group: int = 1,
-          norm_type: str = 'batch_norm'):
+  def __init__(self, in_channels: int, out_channels: int,
+               norm_type: str = 'batch_norm'):
     super().__init__()
     self.conv = Conv1x1(in_channels, out_channels, use_bias=False)
-    self.norm = GraphNorm(out_channels, group, norm_type)
+    self.norm = GraphNorm(out_channels, norm_type)
     # self.bn = torch.nn.BatchNorm1d(out_channels, bn_eps, bn_momentum)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
@@ -195,12 +200,11 @@ class Conv1x1Norm(torch.nn.Module):
 
 class Conv1x1NormAct(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, group: int = 1,
-          norm_type: str = 'batch_norm', act_type: str = 'relu'):
+  def __init__(self, in_channels: int, out_channels: int,
+               norm_type: str = 'batch_norm', act_type: str = 'relu'):
     super().__init__()
     self.conv = Conv1x1(in_channels, out_channels, use_bias=False)
-    self.norm = GraphNorm(out_channels, group, norm_type)
+    self.norm = GraphNorm(out_channels, norm_type)
     self.act = Activation(act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
@@ -212,12 +216,10 @@ class Conv1x1NormAct(torch.nn.Module):
 
 class Prediction(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, mid_channels: int, out_channels: int,
-          group: int = 1, norm_type: str = 'batch_norm', act_type: str = 'relu'):
+  def __init__(self, in_channels: int, mid_channels: int, out_channels: int,
+               norm_type: str = 'batch_norm', act_type: str = 'relu'):
     super().__init__()
-    self.conv1 = Conv1x1NormAct(
-        in_channels, mid_channels, group, norm_type, act_type)
+    self.conv1 = Conv1x1NormAct(in_channels, mid_channels, norm_type, act_type)
     self.conv2 = Conv1x1(mid_channels, out_channels, use_bias=True)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
@@ -264,16 +266,15 @@ class Downsample(torch.nn.Module):
 
 class GraphDownsample(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, group: int = 1,
-          norm_type: str = 'batch_norm', act_type: str = 'relu'):
+  def __init__(self, in_channels: int, out_channels: int,
+               norm_type: str = 'batch_norm', act_type: str = 'relu'):
     super().__init__()
     self.in_channels = in_channels
     self.out_channels = out_channels
     self.downsample = Downsample(in_channels)
     if in_channels != out_channels:
       self.conv1x1 = Conv1x1NormAct(
-          in_channels, out_channels, group, norm_type, act_type)
+          in_channels, out_channels, norm_type, act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     # downsample nodes at layer depth
@@ -301,16 +302,15 @@ class GraphDownsample(torch.nn.Module):
 
 class GraphUpsample(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, group: int = 1,
-          norm_type: str = 'batch_norm', act_type: str = 'relu'):
+  def __init__(self, in_channels: int, out_channels: int,
+               norm_type: str = 'batch_norm', act_type: str = 'relu'):
     super().__init__()
     self.in_channels = in_channels
     self.out_channels = out_channels
     self.upsample = Upsample(in_channels)
     if in_channels != out_channels:
       self.conv1x1 = Conv1x1NormAct(
-          in_channels, out_channels, group, norm_type, act_type)
+          in_channels, out_channels, norm_type, act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     # upsample nodes at layer (depth-1)
@@ -332,10 +332,9 @@ class GraphUpsample(torch.nn.Module):
 
 class GraphResBlock2(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, n_edge_type: int = 7,
-          n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm',
-          act_type: str = 'relu', bottleneck: int = 4):
+  def __init__(self, in_channels: int, out_channels: int, n_edge_type: int = 7,
+               n_node_type: int = 0, norm_type: str = 'batch_norm',
+               act_type: str = 'relu', bottleneck: int = 4):
     super().__init__()
     self.in_channels = in_channels
     self.out_channels = out_channels
@@ -343,11 +342,11 @@ class GraphResBlock2(torch.nn.Module):
     channel_m = int(out_channels / bottleneck)
 
     self.conva = GraphConvNormAct(
-        in_channels, channel_m, n_edge_type, n_node_type, group, norm_type, act_type)
+        in_channels, channel_m, n_edge_type, n_node_type, norm_type, act_type)
     self.convb = GraphConvNorm(
-        channel_m, out_channels, n_edge_type, n_node_type, group, norm_type)
+        channel_m, out_channels, n_edge_type, n_node_type, norm_type)
     if self.in_channels != self.out_channels:
-      self.conv1x1 = Conv1x1Norm(in_channels, out_channels, group, norm_type)
+      self.conv1x1 = Conv1x1Norm(in_channels, out_channels, norm_type)
     self.act = Activation(act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
@@ -363,23 +362,21 @@ class GraphResBlock2(torch.nn.Module):
 
 class GraphResBlock(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, n_edge_type: int = 7,
-          n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm',
-          act_type: str = 'relu', bottleneck: int = 4):
+  def __init__(self, in_channels: int, out_channels: int, n_edge_type: int = 7,
+               n_node_type: int = 0, norm_type: str = 'batch_norm',
+               act_type: str = 'relu', bottleneck: int = 4):
     super().__init__()
     self.in_channels = in_channels
     self.out_channels = out_channels
     self.bottleneck = bottleneck
     channel_m = int(out_channels / bottleneck)
 
-    self.conv1x1a = Conv1x1NormAct(
-        in_channels, channel_m, group, norm_type, act_type)
+    self.conv1x1a = Conv1x1NormAct(in_channels, channel_m, norm_type, act_type)
     self.conv = GraphConvNormAct(
-        channel_m, channel_m, n_edge_type, n_node_type, group, norm_type, act_type)
-    self.conv1x1b = Conv1x1Norm(channel_m, out_channels, group, norm_type)
+        channel_m, channel_m, n_edge_type, n_node_type, norm_type, act_type)
+    self.conv1x1b = Conv1x1Norm(channel_m, out_channels, norm_type)
     if self.in_channels != self.out_channels:
-      self.conv1x1c = Conv1x1Norm(in_channels, out_channels, group, norm_type)
+      self.conv1x1c = Conv1x1Norm(in_channels, out_channels, norm_type)
     self.act = Activation(act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
@@ -396,18 +393,17 @@ class GraphResBlock(torch.nn.Module):
 
 class GraphResBlocks(torch.nn.Module):
 
-  def __init__(
-          self, in_channels: int, out_channels: int, n_edge_type: int = 7,
-          n_node_type: int = 0, group: int = 1, norm_type: str = 'batch_norm',
-          act_type: str = 'relu', bottleneck: int = 4, resblk_num: int = 1,
-          resblk_type: str = 'basic', use_checkpoint: bool = True):
+  def __init__(self, in_channels: int, out_channels: int, n_edge_type: int = 7,
+               n_node_type: int = 0, norm_type: str = 'batch_norm',
+               act_type: str = 'relu', bottleneck: int = 4, resblk_num: int = 1,
+               resblk_type: str = 'basic', use_checkpoint: bool = True):
     super().__init__()
     self.resblk_num = resblk_num
     self.use_checkpoint = use_checkpoint
     channels = [in_channels] + [out_channels] * resblk_num
     ResBlk = self._get_resblock(resblk_type)
     self.resblks = torch.nn.ModuleList([ResBlk(channels[i], channels[i+1],
-        n_edge_type, n_node_type, group, norm_type, act_type, bottleneck)
+        n_edge_type, n_node_type, norm_type, act_type, bottleneck)
         for i in range(self.resblk_num)])  # noqa
 
   def _get_resblock(self, resblk_type):

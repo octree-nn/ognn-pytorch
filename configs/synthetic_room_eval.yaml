@@ -46,6 +46,5 @@ MODEL:
   feature: L
   norm_type: batch_norm
   act_type: relu
-  group: 1
 
   depth_out: 7
