@@ -18,7 +18,7 @@ setup(
     author='Peng-Shuai Wang',
     author_email='wangps@hotmail.com',
     url='https://github.com/octree-nn/ognn-pytorch',
-    description='Dual Octree Graph Networks',
+    description='Dual Octree Graph Neural Networks',
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
