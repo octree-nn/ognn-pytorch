@@ -22,6 +22,7 @@ class Graph:
     self.nnum = None         # the total node number
 
     self.batch_id = None
+    self.batch_nnum = None
     self.node_depth = None
     self.child = None        # the octree node has children or not
     self.key = None          # the bits from the 58th is the node depth
@@ -90,6 +91,12 @@ class OctreeD(Octree):
          5, 0, 2, 5, 1, 2, 5, 3, 0, 5, 3, 1],
         dtype=torch.int64, device=self.device)
 
+  def _get_batch_nnum(self, batch_id):
+    ones = torch.ones_like(batch_id)
+    batch_nnum = ocnn.utils.scatter_add(
+        ones, batch_id, dim=0, dim_size=self.batch_size)
+    return batch_nnum
+
   def batch_id(self, depth: int, nempty: bool = False):
     r""" Override the method in the Octree class. """
     return self.graphs[depth].batch_id
@@ -157,6 +164,7 @@ class OctreeD(Octree):
     # graph nodes
     node_key = self.keys[depth]
     graph.batch_id = node_key >> 48
+    graph.batch_nnum = self._get_batch_nnum(graph.batch_id)
     graph.node_depth = torch.ones_like(node_key) * depth
     graph.key = torch.bitwise_or(node_key, graph.node_depth << graph.key_shift)
     graph.child = self.children[depth]
@@ -229,6 +237,7 @@ class OctreeD(Octree):
     node_key = torch.bitwise_or(node_key, node_depth << 58)
     leaf_mask = graph.child < 0
     graph_d.batch_id = torch.cat([graph.batch_id[leaf_mask], batch_id])
+    graph.batch_nnum = self._get_batch_nnum(graph.batch_id)
     graph_d.node_depth = torch.cat([graph.node_depth[leaf_mask], node_depth])
     graph_d.key = torch.cat([graph.key[leaf_mask], node_key])
     graph_d.child = torch.cat([graph.child[leaf_mask], self.children[depth]])
