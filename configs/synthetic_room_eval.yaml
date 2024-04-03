@@ -10,20 +10,20 @@ SOLVER:
   run: evaluate
   logdir: logs/room_eval/room
   ckpt: logs/room/room/checkpoints/00900.model.pth
+
+  # sdf
   sdf_scale: 0.9
   resolution: 280
+  save_sdf: False       # save the sdfs in evaluation
 
 DATA:
   test:
     name: pointcloud_eval
-    point_scale: 0.6
 
     # octree building
     depth: 7
-    offset: 0.0
     full_depth: 3
-    node_dis: True
-    split_label: True
+    point_scale: 0.6
 
     # data augmentation, add noise only
     # distort: True
@@ -39,9 +39,9 @@ DATA:
 
 
 MODEL:
-  name: graph_ounet
+  name: graph_ounetr
 
-  in_channels: 4
+  in_channels: 3
   resblk_type: basic
   feature: L
   norm_type: batch_norm
