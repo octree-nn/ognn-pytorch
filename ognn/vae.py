@@ -10,6 +10,7 @@ from typing import List
 from torch.utils.checkpoint import checkpoint
 
 from ognn import nn
+from ognn import mpu
 from ognn.octreed import OctreeD
 
 
@@ -248,13 +249,12 @@ class Encoder(torch.nn.Module):
 
 class Decoder(torch.nn.Module):
 
-  def __init__(self, in_channels: int, out_channels: int, n_node_type: int = 7,
+  def __init__(self, out_channels: int, n_node_type: int = 7,
                dec_channels: List[int] = [64, 32],
                net_channels: List[int] = [256, 128, 64],
                resblk_nums: List[int] = [2, 2, 2],
                predict_octree: bool = False, **kwargs):
     super().__init__()
-    self.in_channels = in_channels
     self.out_channels = out_channels
     self.n_node_type = n_node_type
     self.dec_channels = dec_channels
@@ -277,25 +277,40 @@ class Decoder(torch.nn.Module):
 
 class GraphVAE(torch.nn.Module):
 
-  def __init__(self) -> None:
+  def __init__(self, in_channels: int, n_node_type: int = 7,
+               code_channels: int = 3, out_channels: int = 4,
+               feature: str = 'ND'):
     super().__init__()
 
-    self.feature = ''
-    self.encoder = Encoder()
-    self.decoder = Decoder()
-    self.neural_mpu = nn.NeuralMPU()
+    self.feature = feature
+    self.in_channels = in_channels
+    self.out_channels = out_channels
+    self.n_node_type = n_node_type
+    self.encoder = Encoder(
+        self.in_channels, self.n_node_type, self.enc_channels,
+        self.enc_net_channels, self.enc_resblk_nums)
+    self.decoder = Decoder(
+        self.out_channels, self.n_node_type, self.dec_channels,
+        self.dec_net_channels, self.dec_resblk_nums)
+    self.neural_mpu = mpu.NeuralMPU()
 
-    self.code_channels = 3
+    self.code_channels = code_channels
     self.pre_kl_conv = nn.Conv1x1(
-        ae_channel_in, 2 * self.code_channels, use_bias=True)
+        self.enc_channels[-1], 2 * self.code_channels, use_bias=True)
     self.post_kl_conv = nn.Conv1x1(
-        self.code_channels, ae_channel_in, use_bias=True)
-    # self.post_lk_conv_color = nn.Conv1x1(
-    #     embed_dim // 2, ae_channel_in, use_bias=True)
+        self.code_channels, self.dec_channels[0], use_bias=True)
+
+  def config_network(self):
+    self.enc_channels = [32, 64]
+    self.enc_net_channels = [64, 128, 256]
+    self.enc_resblk_nums = [2, 2, 2]
+
+    self.dec_channels = [64, 32]
+    self.dec_net_channels = [256, 128, 64]
+    self.dec_resblk_nums = [2, 2, 2]
 
   def forward(self, octree_in: OctreeD, octree_out: OctreeD,
               pos: torch.Tensor = None, update_octree: bool = False):
-
     depth = octree_in.depth
     data = octree_in.get_input_feature(feature=self.feature)
     conv = self.encoder(data, octree_in, depth)
