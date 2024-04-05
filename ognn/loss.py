@@ -111,25 +111,6 @@ def compute_sdf_loss(mpus, grads, sdf_gt, grad_gt, reg_loss_func):
   return output
 
 
-def compute_occu_loss_v0(mpus, grads, occu_gt, grad_gt, weight):
-  output = dict()
-  for d in mpus.keys():
-    occu, flgs, grad = mpus[d]
-
-    # pos_weight = torch.ones_like(occu_gt) * 10.0
-    loss_o = F.binary_cross_entropy_with_logits(occu, occu_gt, weight=weight)
-    # loss_g = torch.mean((grad - grad_gt) ** 2)
-
-    occu = torch.sigmoid(occu)
-    non_surface_points = occu_gt != 0.5
-    accu = (occu > 0.5).eq(occu_gt).float()[non_surface_points].mean()
-
-    output['occu_loss_%d' % d] = loss_o
-    # output['grad_loss_%d' % d] = loss_g
-    output['occu_accu_%d' % d] = accu
-  return output
-
-
 def compute_occu_loss_1214(mpus, occu):
   # tried on 2021.12.13
   weights = [0.2] * 4 + [0.4, 0.6, 0.8] + [1.0] * 16  # TODO: tune the weights
@@ -229,6 +210,14 @@ def compute_occu_loss_cls(mpus, grads, occu_gt, grad_gt):
   return output
 
 
+def compute_color_loss(colors, color_gt):
+  output = dict()
+  for d in colors.keys():
+    color_loss = (colors[d] - color_gt).pow(2).mean() * 200.0
+    output['color_loss_%d' % d] = color_loss
+  return output
+
+
 def get_sdf_loss_function(loss_type=''):
   if loss_type == 'sdf_reg_loss':
     return sdf_reg_loss
@@ -276,4 +265,16 @@ def synthetic_room_loss(batch, model_out, reg_loss_type=''):
       model_out['mpus'], grads, batch['occu'], batch['grad'])
   output.update(occu_loss)
 
+  return output
+
+
+def shapenet_vae_loss(batch, model_out, reg_loss_type='', kl_weight=1.0):
+  output = shapenet_loss(batch, model_out, reg_loss_type)
+
+  if 'colors' in model_out:
+    color_loss = compute_color_loss(model_out['colors'], batch['color'])
+    output.update(color_loss)
+
+  if 'kl_loss' in model_out.keys():
+    output['kl_loss'] = kl_weight * model_out['kl_loss']
   return output

@@ -60,5 +60,7 @@ def get_loss_function(flags):
     return ognn.loss.dfaust_loss
   elif flags.name.lower() == 'synthetic_room':
     return ognn.loss.synthetic_room_loss
+  elif flags.name.lower() == 'shapenet_vae':
+    return ognn.loss.shapenet_vae_loss
   else:
     raise ValueError
