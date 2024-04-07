@@ -9,6 +9,7 @@ from . import loss
 from .ounet import GraphOUNet
 from .ae import GraphAE
 from .unet import GraphUNet
+from .vae import GraphVAE
 
 
-__all__ = ['loss', 'GraphOUNet', 'GraphAE', 'GraphUNet']
+__all__ = ['loss', 'GraphOUNet', 'GraphAE', 'GraphUNet', 'GraphVAE']

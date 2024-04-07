@@ -9,8 +9,8 @@ SOLVER:
   gpu: 0,
   run: train
 
-  logdir: logs/shapenet/ae
-  max_epoch: 300
+  logdir: logs/shapenet_vae/vae
+  max_epoch: 900
   test_every_epoch: 20
   log_per_iter: 50
   ckpt_num: 40
@@ -32,17 +32,16 @@ SOLVER:
 
 DATA:
   train:
-    name: shapenet
+    name: shapenet_vae
 
     # octree building
-    depth: 6
+    depth: 8
     full_depth: 3
     point_scale: 0.5  # the scale of point clouds
 
-    # sdf
-    load_occu: False  # load occupancy samples
-    point_sample_num: 10000
-    sample_surf_points: False
+    # sdf & color samples
+    sdf_sample_num: 10000
+    color_sample_num: 10000
 
     # no data augmentation
     distort: False
@@ -51,22 +50,22 @@ DATA:
     location: data/ShapeNet/dataset
     filelist: data/ShapeNet/filelist/train_im.txt
     load_sdf: True
+    load_color: False
     batch_size: 16
     shuffle: True
     # num_workers: 0
 
   test:
-    name: shapenet
+    name: shapenet_vae
 
     # octree building
-    depth: 6
+    depth: 8
     full_depth: 3
     point_scale: 0.5  # the scale of point clouds
 
-    # sdf
-    load_occu: False  # load occupancy samples
-    point_sample_num: 10000
-    sample_surf_points: False
+    # sdf & color samples
+    sdf_sample_num: 10000
+    color_sample_num: 10000
 
     # no data augmentation
     distort: False
@@ -76,21 +75,21 @@ DATA:
     filelist: data/ShapeNet/filelist/val_im.txt
     batch_size: 4
     load_sdf: True
+    load_color: False
     shuffle: False
     # num_workers: 0
 
 
 MODEL:
-  name: graph_ae
+  name: graph_vae
 
   in_channels: 4
   resblk_type: basic
   feature: ND
-  norm_type: batch_norm
-  act_type: relu
 
   depth_out: 6
 
 LOSS:
-  name: shapenet
+  name: shapenet_vae
   loss_type: sdf_reg_loss
+  kl_weight: 0.1

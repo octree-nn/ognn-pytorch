@@ -130,5 +130,6 @@ class NeuralMPU:
     depth_start = octree.full_depth
     for d in range(depth_start, depth_end+1):
       mpus[d] = self.perpare(octree, d, pts)
-      fvals[d] = self.compute(pts, features[d], octree, mpus, depth_start, d)
+      if d in features:
+        fvals[d] = self.compute(pts, features[d], octree, mpus, depth_start, d)
     return fvals

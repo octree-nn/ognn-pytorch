@@ -231,7 +231,7 @@ def get_sdf_loss_function(loss_type=''):
     return None
 
 
-def shapenet_loss(batch, model_out, reg_loss_type=''):
+def shapenet_loss(batch, model_out, reg_loss_type='', **kwargs):
   # octree loss
   output = compute_octree_loss(model_out['logits'], model_out['octree_out'])
 
@@ -244,7 +244,7 @@ def shapenet_loss(batch, model_out, reg_loss_type=''):
   return output
 
 
-def dfaust_loss(batch, model_out, reg_loss_type=''):
+def dfaust_loss(batch, model_out, reg_loss_type='', **kwargs):
   # there is no octree loss
   grads = compute_mpu_gradients(model_out['mpus'], batch['pos'])
   reg_loss_func = get_sdf_loss_function(reg_loss_type)
@@ -253,7 +253,7 @@ def dfaust_loss(batch, model_out, reg_loss_type=''):
   return output
 
 
-def synthetic_room_loss(batch, model_out, reg_loss_type=''):
+def synthetic_room_loss(batch, model_out, **kwargs):
   # octree loss
   output = compute_octree_loss(model_out['logits'], model_out['octree_out'])
 
@@ -268,7 +268,7 @@ def synthetic_room_loss(batch, model_out, reg_loss_type=''):
   return output
 
 
-def shapenet_vae_loss(batch, model_out, reg_loss_type='', kl_weight=1.0):
+def shapenet_vae_loss(batch, model_out, reg_loss_type='', **kwargs):
   output = shapenet_loss(batch, model_out, reg_loss_type)
 
   if 'colors' in model_out:
@@ -276,5 +276,6 @@ def shapenet_vae_loss(batch, model_out, reg_loss_type='', kl_weight=1.0):
     output.update(color_loss)
 
   if 'kl_loss' in model_out.keys():
+    kl_weight = kwargs['kl_weight']
     output['kl_loss'] = kl_weight * model_out['kl_loss']
   return output

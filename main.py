@@ -34,7 +34,7 @@ class OGNSolver(Solver):
   def compute_loss(self, batch, model_out):
     flags = self.FLAGS.LOSS
     loss_func = builder.get_loss_function(flags)
-    output = loss_func(batch, model_out, flags.loss_type)
+    output = loss_func(batch, model_out, flags.loss_type, **flags)
     return output
 
   def model_forward(self, batch):

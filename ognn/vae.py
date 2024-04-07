@@ -88,24 +88,27 @@ class Encoding(torch.nn.Module):
     self.act_type = 'gelu'
     self.use_checkpoint = True
 
-    n_node_types = [self.n_node_type - i for i in range(self.stage_num)]
+    channels = [self.channels[0]] + self.channels
+    self.downsample = torch.nn.ModuleList([nn.GraphDownsample(
+        channels[i], channels[i+1], self.norm_type, self.act_type)
+        for i in range(self.stage_num)])
+    n_node_types = [self.n_node_type - i - 1 for i in range(self.stage_num)]
     self.conv = torch.nn.ModuleList([nn.GraphConvNormAct(
         self.channels[i], self.channels[i], self.n_edge_type,
         n_node_types[i], self.norm_type, self.act_type)
         for i in range(self.stage_num)])
-    self.downsample = torch.nn.ModuleList([nn.GraphDownsample(
-        self.channels[i], self.channels[i+1], self.norm_type, self.act_type)
-        for i in range(self.stage_num)])
+
+  def checkpoint_wrapper(self, module, *args):
+    if self.use_checkpoint and self.training:
+      return checkpoint(module, *args)
+    else:
+      return module(*args)
 
   def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
     for i in range(self.stage_num):
       d = depth - i
-      if self.use_checkpoint and self.training:
-        data = checkpoint(self.conv[i], data, octree, d)
-        data = checkpoint(self.downsample[i], data, octree, d)
-      else:
-        data = self.conv[i](data, octree, d)
-        data = self.downsample[i](data, octree, d)
+      data = self.checkpoint_wrapper(self.downsample[i], data, octree, d)
+      data = self.checkpoint_wrapper(self.conv[i], data, octree, d - 1)
     return data
 
 
@@ -125,29 +128,30 @@ class Decoding(torch.nn.Module):
     self.predict_octree = predict_octree
     self.out_channels = out_channels
 
-    n_node_types = [self.n_node_type - i for i in range(self.stage_num)]
+    n_node_types = [n_node_type - i for i in range(self.stage_num-1, -1, -1)]
     self.conv = torch.nn.ModuleList([nn.GraphConvNormAct(
         self.channels[i], self.channels[i], self.n_edge_type,
         n_node_types[i], self.norm_type, self.act_type)
         for i in range(self.stage_num)])
+    channels = [self.channels[0]] + self.channels
     self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
-        self.channels[i], self.channels[i+1], self.norm_type, self.act_type)
+        channels[i], channels[i+1], self.norm_type, self.act_type)
         for i in range(self.stage_num)])
     self.graph_pad = nn.GraphPad()
 
     mid_channels = 32
     self.regress = torch.nn.ModuleList([nn.Prediction(
-        self.channels[i], mid_channels, self.out_channels, self.norm_type,
-        self.act_type) for i in range(self.stage_num)])
+        channels[i], mid_channels, self.out_channels, self.norm_type,
+        self.act_type) for i in range(self.stage_num + 1)])
     if self.predict_octree:
       self.predict = torch.nn.ModuleList([nn.Prediction(
-          self.channels[i], mid_channels, 2, self.norm_type, self.act_type)
-          for i in range(self.stage_num)])
+          channels[i], mid_channels, 2, self.norm_type, self.act_type)
+          for i in range(self.stage_num + 1)])
 
   def forward(self, data: torch.Tensor, octree: OctreeD, depth: int,
               update_octree: bool = False):
     logits, signals = dict(), dict()
-    for i in range(self.stage_num):
+    for i in range(self.stage_num + 1):
       d = depth + i
       if i > 0:
         data = checkpoint(self.upsample[i-1], data, octree, d-1)
@@ -231,19 +235,21 @@ class Encoder(torch.nn.Module):
     self.enc_channels = enc_channels
     self.net_chennels = net_channels
     self.resblk_nums = resblk_nums
+    self.delta_depth = len(self.enc_channels)
+    self.n_edge_type = 7
 
     self.conv1 = nn.GraphConvNormAct(
-        self.in_channels, self.channels[0], self.n_edge_type, self.n_node_type,
-        norm_type='group_norm', act_type='gelu')
+        self.in_channels, self.enc_channels[0], self.n_edge_type,
+        self.n_node_type, norm_type='group_norm', act_type='gelu')
     self.encoding = Encoding(self.enc_channels, self.n_node_type)
     self.net = TinyNet(
         self.net_chennels, self.resblk_nums, resblk_type='basic', bottleneck=2,
-        n_node_type=self.n_node_type-len(self.enc_channels))
+        n_node_type=self.n_node_type - self.delta_depth)
 
   def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
     data = self.conv1(data, octree, depth)
     data = self.encoding(data, octree, depth)
-    data = self.net(data, octree, depth - len(self.enc_channels))
+    data = self.net(data, octree, depth - self.delta_depth)
     return data
 
 
@@ -251,7 +257,7 @@ class Decoder(torch.nn.Module):
 
   def __init__(self, out_channels: int, n_node_type: int = 7,
                dec_channels: List[int] = [64, 32],
-               net_channels: List[int] = [256, 128, 64],
+               net_channels: List[int] = [64, 128, 256],
                resblk_nums: List[int] = [2, 2, 2],
                predict_octree: bool = False, **kwargs):
     super().__init__()
@@ -266,7 +272,8 @@ class Decoder(torch.nn.Module):
         self.net_chennels, self.resblk_nums, resblk_type='basic', bottleneck=2,
         n_node_type=self.n_node_type-len(self.dec_channels))
     self.decoding = Decoding(
-        self.dec_channels, self.n_node_type, self.out_channels, self.predict_octree)
+        self.dec_channels, self.n_node_type, self.out_channels,
+        self.predict_octree)
 
   def forward(self, data: torch.Tensor, octree: OctreeD, depth: int,
               update_octree: bool = False):
@@ -279,19 +286,21 @@ class GraphVAE(torch.nn.Module):
 
   def __init__(self, in_channels: int, n_node_type: int = 7,
                code_channels: int = 3, out_channels: int = 4,
-               feature: str = 'ND'):
+               feature: str = 'ND', **kwargs):
     super().__init__()
 
     self.feature = feature
     self.in_channels = in_channels
     self.out_channels = out_channels
     self.n_node_type = n_node_type
+    self.config_network()
+
     self.encoder = Encoder(
         self.in_channels, self.n_node_type, self.enc_channels,
         self.enc_net_channels, self.enc_resblk_nums)
     self.decoder = Decoder(
         self.out_channels, self.n_node_type, self.dec_channels,
-        self.dec_net_channels, self.dec_resblk_nums)
+        self.dec_net_channels, self.dec_resblk_nums, predict_octree=True)
     self.neural_mpu = mpu.NeuralMPU()
 
     self.code_channels = code_channels
@@ -303,10 +312,10 @@ class GraphVAE(torch.nn.Module):
   def config_network(self):
     self.enc_channels = [32, 64]
     self.enc_net_channels = [64, 128, 256]
-    self.enc_resblk_nums = [2, 2, 2]
+    self.enc_resblk_nums = [1, 1, 1]
 
     self.dec_channels = [64, 32]
-    self.dec_net_channels = [256, 128, 64]
+    self.dec_net_channels = [64, 128, 256]
     self.dec_resblk_nums = [2, 2, 2]
 
   def forward(self, octree_in: OctreeD, octree_out: OctreeD,
@@ -320,7 +329,12 @@ class GraphVAE(torch.nn.Module):
     z = posterior.sample()
     data = self.post_kl_conv(z)
 
-    output = self.decoder(data, octree_in, octree_out, update_octree)
+    curr_depth = depth - self.encoder.delta_depth
+    output = self.decoder(data, octree_out, curr_depth, update_octree)
+
+    output['kl_loss'] = posterior.kl().mean()
+    output['code_max'] = z.max()
+    output['code_min'] = z.min()
 
     # setup mpu
     depth_out = octree_out.depth

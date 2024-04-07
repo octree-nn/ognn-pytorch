@@ -19,8 +19,8 @@ class TransformShape:
   def __init__(self, flags):
     self.flags = flags
 
-    self.sdf_sample_num = 50000
-    self.color_sample_num = 50000
+    self.sdf_sample_num = flags.sdf_sample_num
+    self.color_sample_num = flags.color_sample_num
     self.points_scale = 0.5  # the points are in [-0.5, 0.5]
 
     self.depth = flags.depth
@@ -98,7 +98,8 @@ class ReadFile:
       raw = np.load(filename_color)
       point_cloud['colors'] = raw['colors']
       color = {'points': point_cloud['points'], 'color': raw['color']}
-
+    else:
+      color = None
     return {'point_cloud': point_cloud, 'sdf': sdf, 'color': color}
 
 

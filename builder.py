@@ -21,18 +21,16 @@ class GraphOUNetR(ognn.GraphOUNet):
 
 
 def get_model(flags):
-  params = {
-      'in_channels': flags.in_channels, 'resblk_type': flags.resblk_type,
-      'feature': flags.feature, 'norm_type': flags.norm_type,
-      'act_type': flags.act_type}
   if flags.name == 'graph_ounet':
-    model = ognn.GraphOUNet(**params)
+    model = ognn.GraphOUNet(**flags)
   elif flags.name == 'graph_ounetr':
-    model = GraphOUNetR(**params)
+    model = GraphOUNetR(**flags)
   elif flags.name == 'graph_unet':
-    model = ognn.GraphUNet(**params)
+    model = ognn.GraphUNet(**flags)
   elif flags.name == 'graph_ae':
-    model = ognn.GraphAE(**params)
+    model = ognn.GraphAE(**flags)
+  elif flags.name == 'graph_vae':
+    model = ognn.GraphVAE(**flags)
   else:
     raise ValueError
   return model
@@ -41,6 +39,8 @@ def get_model(flags):
 def get_dataset(flags):
   if flags.name.lower() == 'shapenet':
     return datasets.get_shapenet_dataset(flags)
+  elif flags.name.lower() == 'shapenet_vae':
+    return datasets.get_shapenet_vae_dataset(flags)
   elif flags.name.lower() == 'pointcloud':
     return datasets.get_pointcloud_dataset(flags)
   elif flags.name.lower() == 'singlepointcloud':
