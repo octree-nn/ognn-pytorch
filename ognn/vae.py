@@ -7,164 +7,125 @@
 
 import torch
 from typing import List
-from torch.utils.checkpoint import checkpoint
 
 from ognn import nn
 from ognn import mpu
 from ognn.octreed import OctreeD
 
 
-class TinyNet(torch.nn.Module):
+class TinyEncoder(torch.nn.Module):
 
   def __init__(self, channels: List[int], resblk_nums: List[int],
                resblk_type: str = 'basic', bottleneck: int = 2,
                n_node_type: int = -1, **kwargs):
     super().__init__()
-    self.channels = channels
-    self.resblk_nums = resblk_nums
-    self.resblk_type = resblk_type
-    self.bottleneck = bottleneck
-    self.n_node_type = n_node_type
+    n_edge_type = 7
+    act_type = 'gelu'
+    norm_type = 'group_norm'
+    use_checkpoint = True
+    self.stage_num = len(channels)
+    self.delta_depth = len(channels) - 1
 
-    self.stage_num = len(self.channels)
-    self.n_edge_type = 7
-    self.norm_type = 'group_norm'
-    self.act_type = 'gelu'
-    self.use_checkpoint = True
-
-    # encoder
-    n_node_types = [self.n_node_type - i for i in range(self.stage_num)]
+    n_node_types = [n_node_type - i for i in range(self.stage_num)]
     self.encoder = torch.nn.ModuleList([nn.GraphResBlocks(
-        self.channels[i], self.channels[i], self.n_edge_type,
-        n_node_types[i], self.norm_type, self.act_type, self.bottleneck,
-        self.resblk_nums[i], self.resblk_type, self.use_checkpoint)
+        channels[i], channels[i], n_edge_type, n_node_types[i], norm_type,
+        act_type, bottleneck, resblk_nums[i], resblk_type, use_checkpoint)
         for i in range(self.stage_num)])
     self.downsample = torch.nn.ModuleList([nn.GraphDownsample(
-        self.channels[i], self.channels[i+1], self.norm_type, self.act_type)
-        for i in range(self.stage_num - 1)])
-
-    # decoder
-    self.decoder = torch.nn.ModuleList([nn.GraphResBlocks(
-        self.channels[i], self.channels[i], self.n_edge_type,
-        n_node_types[i], self.norm_type, self.act_type, self.bottleneck,
-        self.resblk_nums[i], self.resblk_type, self.use_checkpoint)
-        for i in range(self.stage_num-1, -1, -1)])
-    self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
-        self.channels[i], self.channels[i-1], self.norm_type, self.act_type)
-        for i in range(self.stage_num-1, 0, -1)])
+        channels[i], channels[i+1], norm_type, act_type)
+        for i in range(self.stage_num - 1)])  # Note: self.stage_num - 1
 
   def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
-
-    convs = dict()
-    convs[depth] = data
+    out = dict()
+    out[depth] = data
     for i in range(self.stage_num):
       d = depth - i
-      convs[d] = self.encoder[i](convs[d], octree, d)
+      out[d] = self.encoder[i](out[d], octree, d)
       if i < self.stage_num - 1:
-        convs[d-1] = self.downsample[i](convs[d], octree, d)
-
-    curr_depth = d
-    out = convs[curr_depth]
-    for i in range(self.stage_num):
-      d = curr_depth + i
-      out = self.decoder[i](out, octree, d)
-      if i < self.stage_num - 1:
-        out = self.upsample[i](out, octree, d)
-        out = out + convs[d+1]  # skip connections
-
+        out[d-1] = self.downsample[i](out[d], octree, d)
     return out
 
 
-class Encoding(torch.nn.Module):
+class TinyDecoder(torch.nn.Module):
 
-  def __init__(self, channels: List[int], n_node_type: int = -1, **kwargs):
+  def __init__(self, channels: List[int], resblk_nums: List[int],
+               resblk_type: str = 'basic', bottleneck: int = 2,
+               n_node_type: int = -1, **kwargs):
     super().__init__()
-    self.channels = channels
-    self.n_node_type = n_node_type
+    n_edge_type = 7
+    act_type = 'gelu'
+    norm_type = 'group_norm'
+    use_checkpoint = True
+    self.stage_num = len(channels)
 
-    self.stage_num = len(self.channels)
-    self.n_edge_type = 7
-    self.norm_type = 'group_norm'
-    self.act_type = 'gelu'
-    self.use_checkpoint = True
-
-    channels = [self.channels[0]] + self.channels
-    self.downsample = torch.nn.ModuleList([nn.GraphDownsample(
-        channels[i], channels[i+1], self.norm_type, self.act_type)
+    n_node_types = [n_node_type + i for i in range(self.stage_num)]
+    self.decoder = torch.nn.ModuleList([nn.GraphResBlocks(
+        channels[i], channels[i], n_edge_type, n_node_types[i], norm_type,
+        act_type, bottleneck, resblk_nums[i], resblk_type, use_checkpoint)
         for i in range(self.stage_num)])
-    n_node_types = [self.n_node_type - i - 1 for i in range(self.stage_num)]
-    self.conv = torch.nn.ModuleList([nn.GraphConvNormAct(
-        self.channels[i], self.channels[i], self.n_edge_type,
-        n_node_types[i], self.norm_type, self.act_type)
-        for i in range(self.stage_num)])
-
-  def checkpoint_wrapper(self, module, *args):
-    if self.use_checkpoint and self.training:
-      return checkpoint(module, *args)
-    else:
-      return module(*args)
-
-  def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
-    for i in range(self.stage_num):
-      d = depth - i
-      data = self.checkpoint_wrapper(self.downsample[i], data, octree, d)
-      data = self.checkpoint_wrapper(self.conv[i], data, octree, d - 1)
-    return data
-
-
-class Decoding(torch.nn.Module):
-
-  def __init__(self, channels: List[int], n_node_type: int = -1,
-               out_channels: int = 4, predict_octree: bool = False, **kwargs):
-    super().__init__()
-    self.channels = channels
-    self.n_node_type = n_node_type
-
-    self.stage_num = len(self.channels)
-    self.n_edge_type = 7
-    self.norm_type = 'group_norm'
-    self.act_type = 'gelu'
-    self.use_checkpoint = True
-    self.predict_octree = predict_octree
-    self.out_channels = out_channels
-
-    n_node_types = [n_node_type - i for i in range(self.stage_num-1, -1, -1)]
-    self.conv = torch.nn.ModuleList([nn.GraphConvNormAct(
-        self.channels[i], self.channels[i], self.n_edge_type,
-        n_node_types[i], self.norm_type, self.act_type)
-        for i in range(self.stage_num)])
-    channels = [self.channels[0]] + self.channels
     self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
-        channels[i], channels[i+1], self.norm_type, self.act_type)
+        channels[i], channels[i+1], norm_type, act_type)
+        for i in range(self.stage_num - 1)])
+
+  def forward(self, datas: torch.Tensor, octree: OctreeD, depth: int):
+    out = datas[depth]
+    for i in range(self.stage_num):
+      d = depth + i
+      out = self.decoder[i](out, octree, d)
+      if i < self.stage_num - 1:
+        out = self.upsample[i](out, octree, d)
+        out = out + datas[d+1]  # skip connections
+    return out
+
+
+class OctreeDecoder(torch.nn.Module):
+
+  def __init__(self, channels: List[int], resblk_nums: List[int],
+               resblk_type: str = 'basic', bottleneck: int = 2,
+               n_node_type: int = -1, out_channels: int = 4,
+               predict_octree: bool = False, **kwargs):
+    super().__init__()
+    n_edge_type = 7
+    act_type = 'gelu'
+    norm_type = 'group_norm'
+    use_checkpoint = True
+    mid_channels = 32
+    self.stage_num = len(channels)
+    self.predict_octree = predict_octree
+
+    n_node_types = [n_node_type + i for i in range(self.stage_num)]
+    self.decoder = torch.nn.ModuleList([nn.GraphResBlocks(
+        channels[i], channels[i], n_edge_type, n_node_types[i], norm_type,
+        act_type, bottleneck, resblk_nums[i], resblk_type, use_checkpoint)
         for i in range(self.stage_num)])
+    self.upsample = torch.nn.ModuleList([nn.GraphUpsample(
+        channels[i], channels[i+1], norm_type, act_type)
+        for i in range(self.stage_num - 1)])
     self.graph_pad = nn.GraphPad()
 
-    mid_channels = 32
     self.regress = torch.nn.ModuleList([nn.Prediction(
-        channels[i], mid_channels, self.out_channels, self.norm_type,
-        self.act_type) for i in range(self.stage_num + 1)])
-    if self.predict_octree:
+        channels[i], mid_channels, out_channels, norm_type, act_type)
+        for i in range(self.stage_num)])
+    if predict_octree:
       self.predict = torch.nn.ModuleList([nn.Prediction(
-          channels[i], mid_channels, 2, self.norm_type, self.act_type)
-          for i in range(self.stage_num + 1)])
+          channels[i], mid_channels, 2, norm_type, act_type)
+          for i in range(self.stage_num)])
 
   def forward(self, data: torch.Tensor, octree: OctreeD, depth: int,
               update_octree: bool = False):
     logits, signals = dict(), dict()
-    for i in range(self.stage_num + 1):
+    for i in range(self.stage_num):
       d = depth + i
-      if i > 0:
-        data = checkpoint(self.upsample[i-1], data, octree, d-1)
-        data = checkpoint(self.conv[i-1], data, octree, d)
+      data = self.decoder[i](data, octree, d)
 
       # predict the splitting label and signal
       if self.predict_octree:
-        logit = checkpoint(self.predict[i], data, octree, d)
+        logit = self.predict[i](data, octree, d)
         nnum = octree.nnum[d]
         logits[d] = logit[-nnum:]
 
       # regress signals and pad zeros to non-leaf nodes
-      signal = checkpoint(self.regress[i], data, octree, d)
+      signal = self.regress[i](data, octree, d)
       signals[d] = self.graph_pad(signal, octree, d)
 
       # update the octree according to predicted labels
@@ -174,26 +135,110 @@ class Decoding(torch.nn.Module):
         if i < self.stage_num - 1:
           octree.octree_grow(d + 1)
 
+      # upsample
+      if i < self.stage_num - 1:
+        data = self.upsample[i](data, octree, d)
+
     return {'logits': logits, 'signals': signals, 'octree_out': octree}
+
+
+class TinyNet(torch.nn.Module):
+
+  def __init__(self, channels: List[int], resblk_nums: List[int],
+               resblk_type: str = 'basic', bottleneck: int = 2,
+               n_node_type: int = -1, **kwargs):
+    super().__init__()
+    self.encoder = TinyEncoder(
+        channels, resblk_nums, resblk_type, bottleneck, n_node_type)
+    self.decoder = TinyDecoder(
+        channels[::-1], resblk_nums[::-1], resblk_type, bottleneck,
+        n_node_type - self.encoder.delta_depth)
+
+  def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
+    encs = self.encoder(data, octree, depth)
+    out = self.decoder(encs, octree, depth - self.encoder.delta_depth)
+    return out
+
+
+class Encoder(torch.nn.Module):
+
+  def __init__(self, in_channels: int, n_node_type: int = 7,
+               enc_channels: List[int] = [24, 32, 64],
+               enc_resblk_nums: List[int] = [1, 1, 1],
+               net_channels: List[int] = [64, 128, 256],
+               net_resblk_nums: List[int] = [1, 2, 2], **kwargs):
+    super().__init__()
+    self.delta_depth = len(enc_channels) - 1
+
+    n_edge_type = 7
+    act_type = 'gelu'
+    norm_type = 'group_norm'
+    resblk_type = 'basic'
+
+    self.conv1 = nn.GraphConvNormAct(
+        in_channels, enc_channels[0], n_edge_type, n_node_type,
+        norm_type, act_type)
+    self.encoding = TinyEncoder(
+        enc_channels, enc_resblk_nums, resblk_type, bottleneck=4,
+        n_node_type=n_node_type)
+    self.net = TinyNet(
+        net_channels, net_resblk_nums, resblk_type, bottleneck=2,
+        n_node_type=n_node_type - self.delta_depth)
+
+  def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
+    conv = self.conv1(data, octree, depth)
+    convs = self.encoding(conv, octree, depth)
+    depth = depth - self.delta_depth
+    data = self.net(convs[depth], octree, depth)
+    return data
+
+
+class Decoder(torch.nn.Module):
+
+  def __init__(self, out_channels: int, n_node_type: int = 7,
+               dec_channels: List[int] = [64, 32, 24],
+               dec_resblk_nums: List[int] = [1, 1, 1],
+               net_channels: List[int] = [64, 128, 256],
+               net_resblk_nums: List[int] = [1, 2, 2],
+               predict_octree: bool = False, **kwargs):
+    super().__init__()
+
+    self.delta_depth = len(dec_channels) - 1
+    n_node_type = n_node_type - self.delta_depth
+    self.net = TinyNet(
+        net_channels, net_resblk_nums, resblk_type='basic',
+        bottleneck=2, n_node_type=n_node_type)
+    self.decoding = OctreeDecoder(
+        dec_channels, dec_resblk_nums, resblk_type='basic',
+        bottleneck=4, n_node_type=n_node_type, out_channels=out_channels,
+        predict_octree=predict_octree)
+
+  def forward(self, data: torch.Tensor, octree: OctreeD, depth: int,
+              update_octree: bool = False):
+    data = self.net(data, octree, depth)
+    output = self.decoding(data, octree, depth, update_octree)
+    return output
 
 
 class DiagonalGaussianDistribution(object):
 
-  def __init__(self, parameters, deterministic=False):
+  def __init__(self, deterministic=False):
     super().__init__()
+    self.deterministic = deterministic
+
+  def setup(self, parameters):
     self.parameters = parameters
+    self.device = parameters.device
     self.mean, self.logvar = torch.chunk(parameters, 2, dim=1)
     self.logvar = torch.clamp(self.logvar, -30.0, 20.0)
-    self.deterministic = deterministic
     self.std = torch.exp(0.5 * self.logvar)
     self.var = torch.exp(self.logvar)
     if self.deterministic:
-      self.var = torch.zeros_like(self.mean).to(device=self.parameters.device)
+      self.var = torch.zeros_like(self.mean).to(device=self.device)
       self.std = self.var.clone()
 
   def sample(self):
-    x = (self.mean +
-         self.std * torch.randn(self.mean.shape, device=self.parameters.device))
+    x = self.mean + self.std * torch.randn(self.mean.shape, device=self.device)
     return x
 
   def kl(self, other=None):
@@ -223,100 +268,40 @@ class DiagonalGaussianDistribution(object):
     return self.mean
 
 
-class Encoder(torch.nn.Module):
-
-  def __init__(self, in_channels: int, n_node_type: int = 7,
-               enc_channels: List[int] = [32, 64],
-               net_channels: List[int] = [64, 128, 256],
-               resblk_nums: List[int] = [2, 2, 2], **kwargs):
-    super().__init__()
-    self.in_channels = in_channels
-    self.n_node_type = n_node_type
-    self.enc_channels = enc_channels
-    self.net_chennels = net_channels
-    self.resblk_nums = resblk_nums
-    self.delta_depth = len(self.enc_channels)
-    self.n_edge_type = 7
-
-    self.conv1 = nn.GraphConvNormAct(
-        self.in_channels, self.enc_channels[0], self.n_edge_type,
-        self.n_node_type, norm_type='group_norm', act_type='gelu')
-    self.encoding = Encoding(self.enc_channels, self.n_node_type)
-    self.net = TinyNet(
-        self.net_chennels, self.resblk_nums, resblk_type='basic', bottleneck=2,
-        n_node_type=self.n_node_type - self.delta_depth)
-
-  def forward(self, data: torch.Tensor, octree: OctreeD, depth: int):
-    data = self.conv1(data, octree, depth)
-    data = self.encoding(data, octree, depth)
-    data = self.net(data, octree, depth - self.delta_depth)
-    return data
-
-
-class Decoder(torch.nn.Module):
-
-  def __init__(self, out_channels: int, n_node_type: int = 7,
-               dec_channels: List[int] = [64, 32],
-               net_channels: List[int] = [64, 128, 256],
-               resblk_nums: List[int] = [2, 2, 2],
-               predict_octree: bool = False, **kwargs):
-    super().__init__()
-    self.out_channels = out_channels
-    self.n_node_type = n_node_type
-    self.dec_channels = dec_channels
-    self.net_chennels = net_channels
-    self.resblk_nums = resblk_nums
-    self.predict_octree = predict_octree
-
-    self.net = TinyNet(
-        self.net_chennels, self.resblk_nums, resblk_type='basic', bottleneck=2,
-        n_node_type=self.n_node_type-len(self.dec_channels))
-    self.decoding = Decoding(
-        self.dec_channels, self.n_node_type, self.out_channels,
-        self.predict_octree)
-
-  def forward(self, data: torch.Tensor, octree: OctreeD, depth: int,
-              update_octree: bool = False):
-    data = self.net(data, octree, depth)
-    output = self.decoding(data, octree, depth, update_octree)
-    return output
-
-
 class GraphVAE(torch.nn.Module):
 
   def __init__(self, in_channels: int, n_node_type: int = 7,
                code_channels: int = 3, out_channels: int = 4,
                feature: str = 'ND', **kwargs):
     super().__init__()
-
     self.feature = feature
-    self.in_channels = in_channels
-    self.out_channels = out_channels
-    self.n_node_type = n_node_type
     self.config_network()
 
     self.encoder = Encoder(
-        self.in_channels, self.n_node_type, self.enc_channels,
-        self.enc_net_channels, self.enc_resblk_nums)
+        in_channels, n_node_type, self.enc_channels, self.enc_resblk_nums,
+        self.enc_net_channels, self.enc_net_resblk_nums)
     self.decoder = Decoder(
-        self.out_channels, self.n_node_type, self.dec_channels,
-        self.dec_net_channels, self.dec_resblk_nums, predict_octree=True)
+        out_channels, n_node_type, self.dec_channels, self.dec_resblk_nums,
+        self.dec_net_channels, self.dec_net_resblk_nums, predict_octree=True)
+
+    self.posterior = DiagonalGaussianDistribution()
     self.neural_mpu = mpu.NeuralMPU()
 
-    self.code_channels = code_channels
     self.pre_kl_conv = nn.Conv1x1(
-        self.enc_channels[-1], 2 * self.code_channels, use_bias=True)
+        self.enc_channels[-1], 2 * code_channels, use_bias=True)
     self.post_kl_conv = nn.Conv1x1(
-        self.code_channels, self.dec_channels[0], use_bias=True)
+        code_channels, self.dec_channels[0], use_bias=True)
 
   def config_network(self):
-    self.enc_channels = [32, 64]
-    self.enc_net_channels = [64, 128, 256]
+    self.enc_channels = [24, 32, 64]
     self.enc_resblk_nums = [1, 1, 1]
+    self.enc_net_channels = [64, 128, 256]
+    self.enc_net_resblk_nums = [1, 2, 2]
 
-    self.dec_channels = [64, 32]
+    self.dec_channels = [64, 32, 24]
+    self.dec_resblk_nums = [1, 1, 1]
     self.dec_net_channels = [64, 128, 256]
-    self.dec_resblk_nums = [2, 2, 2]
+    self.dec_net_resblk_nums = [1, 2, 2]
 
   def forward(self, octree_in: OctreeD, octree_out: OctreeD,
               pos: torch.Tensor = None, update_octree: bool = False):
@@ -325,14 +310,14 @@ class GraphVAE(torch.nn.Module):
     conv = self.encoder(data, octree_in, depth)
 
     code = self.pre_kl_conv(conv)
-    posterior = DiagonalGaussianDistribution(code)
-    z = posterior.sample()
+    self.posterior.setup(code)
+    z = self.posterior.sample()
     data = self.post_kl_conv(z)
 
     curr_depth = depth - self.encoder.delta_depth
     output = self.decoder(data, octree_out, curr_depth, update_octree)
 
-    output['kl_loss'] = posterior.kl().mean()
+    output['kl_loss'] = self.posterior.kl().mean()
     output['code_max'] = z.max()
     output['code_min'] = z.min()
 
