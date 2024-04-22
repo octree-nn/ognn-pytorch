@@ -220,14 +220,13 @@ class Decoder(torch.nn.Module):
     return output
 
 
-class DiagonalGaussianDistribution(object):
+class DiagonalGaussianDistribution(torch.nn.Module):
 
-  def __init__(self, deterministic=False):
+  def __init__(self, parameters: torch.Tensor, deterministic=False):
     super().__init__()
     self.deterministic = deterministic
-
-  def setup(self, parameters):
     self.parameters = parameters
+
     self.device = parameters.device
     self.mean, self.logvar = torch.chunk(parameters, 2, dim=1)
     self.logvar = torch.clamp(self.logvar, -30.0, 20.0)
@@ -284,9 +283,7 @@ class GraphVAE(torch.nn.Module):
         out_channels, n_node_type, self.dec_channels, self.dec_resblk_nums,
         self.dec_net_channels, self.dec_net_resblk_nums, predict_octree=True)
 
-    self.posterior = DiagonalGaussianDistribution()
     self.neural_mpu = mpu.NeuralMPU()
-
     self.pre_kl_conv = nn.Conv1x1(
         self.enc_channels[-1], 2 * code_channels, use_bias=True)
     self.post_kl_conv = nn.Conv1x1(
@@ -305,25 +302,34 @@ class GraphVAE(torch.nn.Module):
 
   def forward(self, octree_in: OctreeD, octree_out: OctreeD,
               pos: torch.Tensor = None, update_octree: bool = False):
+    code = self.extract_code(octree_in)
+    posterior = DiagonalGaussianDistribution(code)
+    z = posterior.sample()
+    code_depth = octree_in.depth - self.encoder.delta_depth
+    # The input paramter `octree_out` is not used. It is just for compatibility
+    # with the other models.
+    output = self.decode_code(z, code_depth, octree_in, pos, update_octree)
+
+    output['kl_loss'] = posterior.kl().mean()
+    output['code_max'] = z.max()
+    output['code_min'] = z.min()
+    return output
+
+  def extract_code(self, octree_in: OctreeD):
     depth = octree_in.depth
     data = octree_in.get_input_feature(feature=self.feature)
     conv = self.encoder(data, octree_in, depth)
+    code = self.pre_kl_conv(conv)    # project features to the vae code
+    return code
 
-    code = self.pre_kl_conv(conv)
-    self.posterior.setup(code)
-    z = self.posterior.sample()
-    data = self.post_kl_conv(z)
-
-    curr_depth = depth - self.encoder.delta_depth
-    output = self.decoder(data, octree_out, curr_depth, update_octree)
-
-    output['kl_loss'] = self.posterior.kl().mean()
-    output['code_max'] = z.max()
-    output['code_min'] = z.min()
+  def decode_code(self, code: torch.Tensor, code_depth: int, octree: OctreeD,
+                  pos: torch.Tensor = None, update_octree: bool = False):
+    data = self.post_kl_conv(code)   # project the vae code to features
+    output = self.decoder(data, octree, code_depth, update_octree)
 
     # setup mpu
-    depth_out = octree_out.depth
-    self.neural_mpu.setup(output['signals'], octree_out, depth_out)
+    depth_out = octree.depth
+    self.neural_mpu.setup(output['signals'], octree, depth_out)
 
     # compute function value with mpu
     if pos is not None:
