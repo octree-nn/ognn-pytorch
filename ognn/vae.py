@@ -290,15 +290,15 @@ class GraphVAE(torch.nn.Module):
         code_channels, self.dec_channels[0], use_bias=True)
 
   def config_network(self):
-    self.enc_channels = [24, 32, 64]
+    self.enc_channels = [24, 32, 32]
     self.enc_resblk_nums = [1, 1, 1]
-    self.enc_net_channels = [64, 128, 256]
-    self.enc_net_resblk_nums = [1, 2, 2]
+    self.enc_net_channels = [32, 64, 256]
+    self.enc_net_resblk_nums = [1, 1, 1]
 
-    self.dec_channels = [64, 32, 24]
+    self.dec_channels = [32, 32, 24]
     self.dec_resblk_nums = [1, 1, 1]
-    self.dec_net_channels = [64, 128, 256]
-    self.dec_net_resblk_nums = [1, 2, 2]
+    self.dec_net_channels = [32, 64, 256]
+    self.dec_net_resblk_nums = [1, 1, 1]
 
   def forward(self, octree_in: OctreeD, octree_out: OctreeD,
               pos: torch.Tensor = None, update_octree: bool = False):
