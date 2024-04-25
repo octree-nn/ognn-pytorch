@@ -7,6 +7,7 @@
 
 import torch
 
+from ognn import mpu
 from ognn.octreed import OctreeD
 from ognn.ounet import GraphOUNet
 
@@ -52,12 +53,12 @@ class GraphUNet(GraphOUNet):
 
     # setup mpu
     depth_out = octree.depth
-    self.neural_mpu.setup(output['signals'], octree, depth_out)
+    neural_mpu = mpu.NeuralMPU(output['signals'], octree, depth_out)
 
     # compute function value with mpu
     if pos is not None:
-      output['mpus'] = self.neural_mpu(pos)
+      output['mpus'] = neural_mpu(pos)
 
     # create the mpu wrapper
-    output['neural_mpu'] = lambda pos: self.neural_mpu(pos)[depth_out]
+    output['neural_mpu'] = lambda pos: neural_mpu(pos)[depth_out]
     return output

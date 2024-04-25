@@ -222,7 +222,7 @@ class Decoder(torch.nn.Module):
 
 class DiagonalGaussianDistribution(torch.nn.Module):
 
-  def __init__(self, parameters: torch.Tensor, deterministic=False):
+  def __init__(self, parameters: torch.Tensor, deterministic: bool = False):
     super().__init__()
     self.deterministic = deterministic
     self.parameters = parameters
@@ -283,7 +283,6 @@ class GraphVAE(torch.nn.Module):
         out_channels, n_node_type, self.dec_channels, self.dec_resblk_nums,
         self.dec_net_channels, self.dec_net_resblk_nums, predict_octree=True)
 
-    self.neural_mpu = mpu.NeuralMPU()
     self.pre_kl_conv = nn.Conv1x1(
         self.enc_channels[-1], 2 * code_channels, use_bias=True)
     self.post_kl_conv = nn.Conv1x1(
@@ -329,12 +328,12 @@ class GraphVAE(torch.nn.Module):
 
     # setup mpu
     depth_out = octree.depth
-    self.neural_mpu.setup(output['signals'], octree, depth_out)
+    neural_mpu = mpu.NeuralMPU(output['signals'], octree, depth_out)
 
     # compute function value with mpu
     if pos is not None:
-      output['mpus'] = self.neural_mpu(pos)
+      output['mpus'] = neural_mpu(pos)
 
     # create the mpu wrapper
-    output['neural_mpu'] = lambda pos: self.neural_mpu(pos)[depth_out]
+    output['neural_mpu'] = lambda pos: neural_mpu(pos)[depth_out]
     return output

@@ -5,6 +5,8 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
+
+# autopep8: off
 import torch
 import torch.autograd
 import numpy as np
@@ -94,13 +96,14 @@ def write_sdf_summary(model, writer, global_step, alias=''):
       writer.add_figure(alias + name, fig, global_step=global_step)
 
 
-def calc_sdf(model, size=256, max_batch=64**3, bbmin=-1.0, bbmax=1.0):
+def calc_field_value(model, size: int = 256, max_batch: int = 64**3,
+                     bbmin: float = -1.0, bbmax: float = 1.0):
   # generate samples
   num_samples = size ** 3
   samples = get_mgrid(size, dim=3)
   samples = samples * ((bbmax - bbmin) / size) + bbmin  # [0,sz]->[bbmin,bbmax]
   samples = torch.from_numpy(samples)
-  sdfs = torch.zeros(num_samples)
+  out = torch.zeros(num_samples)
 
   # forward
   head = 0
@@ -110,16 +113,16 @@ def calc_sdf(model, size=256, max_batch=64**3, bbmin=-1.0, bbmax=1.0):
     idx = torch.zeros(sample_subset.shape[0], 1)
     pts = torch.cat([sample_subset, idx], dim=1).cuda()
     pred = model(pts).squeeze().detach().cpu()
-    sdfs[head:tail] = pred
+    out[head:tail] = pred
     head += max_batch
-  sdfs = sdfs.reshape(size, size, size).numpy()
-  return sdfs
+  out = out.reshape(size, size, size).numpy()
+  return out
 
 
 def create_mesh(model, filename, size=256, max_batch=64**3, level=0,
                 bbmin=-0.9, bbmax=0.9, mesh_scale=1.0, save_sdf=False, **kwargs):
   # marching cubes
-  sdf_values = calc_sdf(model, size, max_batch, bbmin, bbmax)
+  sdf_values = calc_field_value(model, size, max_batch, bbmin, bbmax)
   vtx, faces = np.zeros((0, 3)), np.zeros((0, 3))
   try:
     vtx, faces, _, _ = skimage.measure.marching_cubes(sdf_values, level)

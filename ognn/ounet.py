@@ -29,7 +29,6 @@ class GraphOUNet(torch.nn.Module):
     self.act_type = act_type
     self.config_network()
 
-    self.neural_mpu = mpu.NeuralMPU()
     self.graph_pad = nn.GraphPad()
     self.encoder_stages = len(self.encoder_blk_nums)
     self.decoder_stages = len(self.decoder_blk_nums)
@@ -134,12 +133,12 @@ class GraphOUNet(torch.nn.Module):
 
     # setup mpu
     depth_out = octree_out.depth
-    self.neural_mpu.setup(output['signals'], octree_out, depth_out)
+    neural_mpu = mpu.NeuralMPU(output['signals'], octree_out, depth_out)
 
     # compute function value with mpu
     if pos is not None:
-      output['mpus'] = self.neural_mpu(pos)
+      output['mpus'] = neural_mpu(pos)
 
     # create the mpu wrapper
-    output['neural_mpu'] = lambda pos: self.neural_mpu(pos)[depth_out]
+    output['neural_mpu'] = lambda pos: neural_mpu(pos)[depth_out]
     return output

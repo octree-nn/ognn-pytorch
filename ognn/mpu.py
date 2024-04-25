@@ -15,16 +15,20 @@ from ocnn.utils import scatter_add, range_grid
 from easydict import EasyDict as edict
 
 
-class NeuralMPU:
+class NeuralMPU(object):
 
-  def __init__(self):
+  def __init__(self, features: torch.Tensor, octree: Octree, depth_end: int):
+    super().__init__()
     self.kNN = 8
+    self.buffer = (features, octree, depth_end)  # used for MPU computation
+    assert features.dim() == 2 and features.size(1) % 4 == 0
+    self.channel_out = features.size(1) // 4
 
   def linear_basis(self, x: torch.Tensor):
     return 1.0 - x.abs()
 
   def perpare(self, octree: Octree, depth: int, pts: torch.Tensor):
-    r""" Prepare the data for the Multi-Point Upsampling (MPU) operation. """
+    r''' Neighborhood searching and weight computation for MPU. '''
 
     # compute the coordinates of neighboring octree nodes
     scale = 2 ** depth
@@ -118,9 +122,6 @@ class NeuralMPU:
 
     out = torch.div(out, norm + 1e-8).squeeze()          # (M, C)
     return out
-
-  def setup(self, features: torch.Tensor, octree: Octree, depth_end: int):
-    self.buffer = (features, octree, depth_end)
 
   def __call__(self, pts: torch.Tensor):
     features, octree, depth_end = self.buffer
