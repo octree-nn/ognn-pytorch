@@ -21,8 +21,9 @@ class NeuralMPU(object):
     super().__init__()
     self.kNN = 8
     self.buffer = (features, octree, depth_end)  # used for MPU computation
-    assert features.dim() == 2 and features.size(1) % 4 == 0
-    self.channel_out = features.size(1) // 4
+    feature = features[depth_end]
+    assert feature.dim() == 2 and feature.size(1) % 4 == 0
+    self.channel_out = feature.size(1) // 4
 
   def linear_basis(self, x: torch.Tensor):
     return 1.0 - x.abs()

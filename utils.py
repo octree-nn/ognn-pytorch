@@ -97,13 +97,13 @@ def write_sdf_summary(model, writer, global_step, alias=''):
 
 
 def calc_field_value(model, size: int = 256, max_batch: int = 64**3,
-                     bbmin: float = -1.0, bbmax: float = 1.0):
+                     bbmin: float = -1.0, bbmax: float = 1.0, channel: int = 1):
   # generate samples
   num_samples = size ** 3
   samples = get_mgrid(size, dim=3)
   samples = samples * ((bbmax - bbmin) / size) + bbmin  # [0,sz]->[bbmin,bbmax]
   samples = torch.from_numpy(samples)
-  out = torch.zeros(num_samples)
+  out = torch.zeros(num_samples, channel)
 
   # forward
   head = 0
@@ -112,10 +112,10 @@ def calc_field_value(model, size: int = 256, max_batch: int = 64**3,
     sample_subset = samples[head:tail, :]
     idx = torch.zeros(sample_subset.shape[0], 1)
     pts = torch.cat([sample_subset, idx], dim=1).cuda()
-    pred = model(pts).squeeze().detach().cpu()
+    pred = model(pts).view(-1, channel).detach().cpu()
     out[head:tail] = pred
     head += max_batch
-  out = out.reshape(size, size, size).numpy()
+  out = out.reshape(size, size, size, channel).squeeze().numpy()
   return out
 
 
