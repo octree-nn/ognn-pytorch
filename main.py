@@ -25,7 +25,9 @@ class OGNSolver(Solver):
     return builder.get_dataset(flags)
 
   def batch_to_cuda(self, batch):
-    keys = ['octree_in', 'octree_gt', 'pos', 'sdf', 'grad', 'weight', 'occu']
+    keys = [
+        'octree_in', 'octree_gt', 'pos', 'sdf',
+        'grad', 'weight', 'occu', 'color']
     for key in keys:
       if key in batch:
         batch[key] = batch[key].cuda()

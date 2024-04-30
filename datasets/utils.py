@@ -18,7 +18,7 @@ def collate_func(batch):
     pos = torch.cat(output['pos'], dim=0)
     output['pos'] = torch.cat([pos, batch_idx], dim=1)
 
-  for key in ['grad', 'sdf', 'occu', 'weight']:
+  for key in ['grad', 'sdf', 'occu', 'weight', 'color']:
     if key in output:
       output[key] = torch.cat(output[key], dim=0)
 

@@ -210,10 +210,10 @@ def compute_occu_loss_cls(mpus, grads, occu_gt, grad_gt):
   return output
 
 
-def compute_color_loss(colors, color_gt):
+def compute_color_loss(colors, color_gt, on_surf=None):
   output = dict()
   for d in colors.keys():
-    color_loss = (colors[d] - color_gt).pow(2).mean() * 200.0
+    color_loss = (colors[d] - color_gt)[on_surf].pow(2).mean() * 20.0
     output['color_loss_%d' % d] = color_loss
   return output
 
@@ -274,6 +274,27 @@ def shapenet_vae_loss(batch, model_out, reg_loss_type='', **kwargs):
   if 'colors' in model_out:
     color_loss = compute_color_loss(model_out['colors'], batch['color'])
     output.update(color_loss)
+
+  if 'kl_loss' in model_out.keys():
+    kl_weight = kwargs['kl_weight']
+    output['kl_loss'] = kl_weight * model_out['kl_loss']
+  return output
+
+
+def shapenet_vae_color_loss(batch, model_out, reg_loss_type='', **kwargs):
+  mpus = model_out['mpus']
+  sdfs, colors = dict(), dict()
+  for k in mpus.keys():
+    sdfs[k] = mpus[k][:, 0]
+    colors[k] = mpus[k][:, 1:]
+  model_out['mpus'] = sdfs  # to reuse the original loss functions
+  model_out['colors'] = colors
+
+  output = shapenet_loss(batch, model_out, reg_loss_type)
+
+  on_surf = batch['sdf'] == 0
+  color_loss = compute_color_loss(model_out['colors'], batch['color'], on_surf)
+  output.update(color_loss)
 
   if 'kl_loss' in model_out.keys():
     kl_weight = kwargs['kl_weight']
