@@ -9,7 +9,7 @@ import os
 import torch
 import ocnn
 
-from thsolver import Solver
+from thsolver import Solver, get_config
 from ognn.octreed import OctreeD
 
 import builder
@@ -78,7 +78,7 @@ class OGNSolver(Solver):
     utils.create_mesh(
         output['neural_mpu'], filename, size=self.FLAGS.SOLVER.resolution,
         bbmin=bbmin, bbmax=bbmax, mesh_scale=self.FLAGS.DATA.test.point_scale,
-        save_sdf=self.FLAGS.SOLVER.save_sdf)
+        save_sdf=self.FLAGS.SOLVER.save_sdf, with_color=self.FLAGS.SOLVER.with_color)
 
     # save the input point cloud
     filename = filename[:-4] + '.input.ply'
@@ -100,6 +100,13 @@ class OGNSolver(Solver):
       sdf_scale = self.FLAGS.SOLVER.sdf_scale
       bbmin, bbmax = -sdf_scale, sdf_scale
     return bbmin, bbmax
+
+  @classmethod
+  def update_configs(cls):
+    FLAGS = get_config()
+    # Additional default and common configurations
+    FLAGS.SOLVER.with_color = False           # extract colored meshes
+    FLAGS.SOLVER.save_sdf = False             # save the sdf values
 
 
 if __name__ == '__main__':

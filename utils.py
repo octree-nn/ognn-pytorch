@@ -96,8 +96,8 @@ def write_sdf_summary(model, writer, global_step, alias=''):
       writer.add_figure(alias + name, fig, global_step=global_step)
 
 
-def calc_field_value(model, size: int = 256, max_batch: int = 64**3,
-                     bbmin: float = -1.0, bbmax: float = 1.0, channel: int = 1):
+def calc_field_values(model, size: int = 256, max_batch: int = 64**3,
+                      bbmin: float = -1.0, bbmax: float = 1.0, channel: int = 1):
   # generate samples
   num_samples = size ** 3
   samples = get_mgrid(size, dim=3)
@@ -119,28 +119,40 @@ def calc_field_value(model, size: int = 256, max_batch: int = 64**3,
   return out
 
 
-def create_mesh(model, filename, size=256, max_batch=64**3, level=0,
-                bbmin=-0.9, bbmax=0.9, mesh_scale=1.0, save_sdf=False, **kwargs):
-  # marching cubes
-  sdf_values = calc_field_value(model, size, max_batch, bbmin, bbmax)
-  vtx, faces = np.zeros((0, 3)), np.zeros((0, 3))
+def marching_cubes(values, level=0, with_color=False):
+  colors = None
+  vtx = np.zeros((0, 3))
+  faces = np.zeros((0, 3))
+
   try:
-    vtx, faces, _, _ = skimage.measure.marching_cubes(sdf_values, level)
+    if not with_color:
+      vtx, faces, _, _ = skimage.measure.marching_cubes(values, level)
+    else:
+      import marching_cubes as mcubes
+      sdfs, colors = values[..., 0], values[..., 1:].clip(0, 1)
+      vtx_with_color, faces = mcubes.marching_cubes_color(sdfs, colors, level)
+      vtx, colors = vtx_with_color[:, :3], vtx_with_color[:, 3:]
   except:
     pass
-  if vtx.size == 0 or faces.size == 0:
-    print('Warning from marching cubes: Empty mesh!')
-    return
+
+  return vtx, faces, colors
+
+
+def create_mesh(model, filename, size=256, max_batch=64**3, level=0,
+                bbmin=-0.9, bbmax=0.9, mesh_scale=1.0, save_sdf=False,
+                with_color=False, **kwargs):
+  channel = 1 if not with_color else 4
+  values = calc_field_values(model, size, max_batch, bbmin, bbmax, channel)
+  vtx, faces, colors = marching_cubes(values, level, with_color)
 
   # normalize vtx
   vtx = vtx * ((bbmax - bbmin) / size) + bbmin   # [0,sz]->[bbmin,bbmax]
   vtx = vtx * mesh_scale                         # rescale
 
   # save to ply and npy
-  mesh = trimesh.Trimesh(vtx, faces)
+  mesh = trimesh.Trimesh(vtx, faces, vertex_colors=colors)
   mesh.export(filename)
-  if save_sdf:
-    np.save(filename[:-4] + ".sdf.npy", sdf_values)
+  if save_sdf: np.save(filename[:-4] + ".sdf.npy", values)
 
 
 def calc_sdf_err(filename_gt, filename_pred):
