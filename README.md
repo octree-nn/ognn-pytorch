@@ -1,14 +1,14 @@
 # Dual Octree Graph Networks
 
-This repository contains the implementation of our papers *Dual Octree Graph
-Networks*. The experiments are conducted on Ubuntu 18.04 with 4 V400 GPUs (32GB
-memory). The code is released under the **MIT license**.
+This repository contains a **pure PyTorch**-based implementation of our papers
+*Dual Octree Graph Networks*. The experiments are conducted on Ubuntu 18.04 with
+4 2080Ti GPUs (12GB memory). The code is released under the **MIT license**.
 
 **[Dual Octree Graph Networks for Learning Adaptive Volumetric Shape Representations](https://arxiv.org/abs/2205.02825)**<br/>
 [Peng-Shuai Wang](https://wang-ps.github.io/),
 [Yang Liu](https://xueyuhanlang.github.io/), and
 [Xin Tong](https://www.microsoft.com/en-us/research/people/xtong/) <br/>
-ACM Transactions on Graphics (SIGGRAPH), 41(4), 2022
+ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
 
 ![teaser](teaser.png)
 
