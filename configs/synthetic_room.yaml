@@ -16,7 +16,7 @@ SOLVER:
   ckpt_num: 20
 
   type: adamw
-  lr: 0.001           # default value of adamw
+  lr: 0.00025
   weight_decay: 0.01  # default value of adamw
   lr_type: poly
   step_size: (80,120)
@@ -38,7 +38,7 @@ DATA:
     filelist: data/room/filelist/train.txt
     load_occu: True
     sample_surf_points: True
-    batch_size: 16
+    batch_size: 4
     shuffle: True
     # num_workers: 0
 
@@ -57,7 +57,7 @@ DATA:
     filelist: data/room/filelist/val.txt
     load_occu: True
     sample_surf_points: True
-    batch_size: 8
+    batch_size: 2
     shuffle: False
     # num_workers: 0
 
