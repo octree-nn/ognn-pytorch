@@ -253,7 +253,7 @@ def dfaust_loss(batch, model_out, reg_loss_type='', **kwargs):
   return output
 
 
-def synthetic_room_loss(batch, model_out, **kwargs):
+def synthetic_room_loss(batch, model_out, *args, **kwargs):
   # octree loss
   output = compute_octree_loss(model_out['logits'], model_out['octree_out'])
 

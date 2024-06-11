@@ -1,8 +1,9 @@
 # Dual Octree Graph Networks
 
 This repository contains a **pure PyTorch**-based implementation of our papers
-*Dual Octree Graph Networks*. The experiments are conducted on Ubuntu 18.04 with
-4 2080Ti GPUs (12GB memory). The code is released under the **MIT license**.
+*Dual Octree Graph Networks* (SIGGRAPH 2022). The experiments are conducted on
+Ubuntu 18.04 with 4 2080Ti GPUs (12GB memory). The code is released under the
+**MIT license**.
 
 **[Dual Octree Graph Networks for Learning Adaptive Volumetric Shape Representations](https://arxiv.org/abs/2205.02825)**<br/>
 [Peng-Shuai Wang](https://wang-ps.github.io/),
@@ -34,18 +35,19 @@ ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
 
 ## 1. Installation
 
-1. Install [Conda](https://www.anaconda.com/) and create a `Conda` environment.
+<!-- 1. Install [Conda](https://www.anaconda.com/) and create a `Conda` environment.
     ```bash
     conda create --name ognn python=3.9
     conda activate ognn
-    ```
+    ``` -->
 
-2. Install PyTorch>=1.9.1 with conda according to the official documentation.
+1. Install PyTorch>=1.9.1 according to the official documentation. And the code
+   is tested with `PyTorch 1.12.1` and `cuda 11.3`.
 
 
-3. Clone this repository and install other requirements.
+2. Clone this repository and install other requirements.
     ```bash
-    git clone --recursive https://github.com/octree-nn/ognn-pytorch.git
+    git clone https://github.com/octree-nn/ognn-pytorch.git
     cd  ognn-pytorch
     pip install -r requirements.txt
     ```
@@ -296,7 +298,7 @@ Following the instructions [here](#21-data-preparation) to prepare the dataset.
 ## 6. Citation
 
 ```
-@article {Wang-2022-main,
+@article {Wang-SIG2022,
   title      = {Dual Octree Graph Networks
                 for Learning Adaptive Volumetric Shape Representations},
   author     = {Wang, Peng-Shuai and Liu, Yang and Tong, Xin},
