@@ -182,7 +182,6 @@ python tools/room.py --run generate_dataset
 
 ## 4. Unsupervised Surface Reconstruction with DFaust
 
-
 ### 4.1 Data Preparation
 
 1. Download the [DFaust](https://dfaust.is.tue.mpg.de/) dataset, unzip the raw

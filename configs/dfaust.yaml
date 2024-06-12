@@ -18,7 +18,7 @@ SOLVER:
   # optimizer
   type: adamw
   weight_decay: 0.01  # default value of adamw
-  lr: 0.001           # default value of adamw
+  lr: 0.00025
 
   # learning rate
   lr_type: poly
@@ -38,7 +38,7 @@ DATA:
     # data loading
     location: data/dfaust/dataset
     filelist: data/dfaust/filelist/train.txt
-    batch_size: 16
+    batch_size: 4
     # num_workers: 0
 
   test:
@@ -53,7 +53,7 @@ DATA:
     # data loading
     location: data/dfaust/dataset
     filelist: data/dfaust/filelist/test.txt
-    batch_size: 4
+    batch_size: 2
     # num_workers: 0
 
 
