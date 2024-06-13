@@ -35,14 +35,14 @@ class GraphAE(GraphOUNet):
     depth = octree.depth - self.encoder_stages + 1
 
     # reduce the dimension to get the shape code
-    shape_code = self.project1(convs[depth])
+    shape_code = self.project1(convs[depth], octree, depth)
     return shape_code
 
   def octree_decoder(self, shape_code, octree_in: OctreeD, octree_out: OctreeD,
                      update_octree: bool = False):
     logits, signals = dict(), dict()
     depth = octree_in.depth - self.encoder_stages + 1
-    deconv = self.project2(shape_code)
+    deconv = self.project2(shape_code, octree_out, depth)
     for i in range(self.decoder_stages):
       d = depth + i
       if i > 0:
