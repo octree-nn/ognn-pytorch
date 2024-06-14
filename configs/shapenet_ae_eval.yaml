@@ -52,7 +52,3 @@ MODEL:
   act_type: relu
 
   depth_out: 6
-
-LOSS:
-  name: shapenet
-  loss_type: sdf_reg_loss
