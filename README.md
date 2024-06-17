@@ -41,9 +41,9 @@ ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
     conda activate ognn
     ``` -->
 
-1. Install PyTorch>=1.9.1 according to the official documentation. And the code
-   is tested with `PyTorch 1.12.1` and `cuda 11.3`.
-
+1. Install PyTorch>=1.9.1 according to the [official documentation of
+   PyTorch](https://pytorch.org/get-started/locally/). The code is tested with
+   `PyTorch 1.12.1` and `cuda 11.3`.
 
 2. Clone this repository and install other requirements.
     ```bash
@@ -105,8 +105,8 @@ ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
 ### 2.2 Experiment
 
 1. **Train**: Run the following command to train the network on 4 GPUs. The
-   training takes 17 hours on 4 V100 GPUs. The trained weight and log can be
-   downloaded [here](https://www.dropbox.com/s/v3tnopnqxoqqbvb/shapenet_weights_log.zip?dl=1).
+   training takes 21 hours on 4 2080Ti GPUs. The trained weight and log can be
+   downloaded [here](https://1drv.ms/u/s!AlVDZcYenwuVco2-DVhU6bTW82o).
 
     ```bash
     python main.py  --config configs/shapenet.yaml SOLVER.gpu 0,1,2,3
@@ -160,9 +160,8 @@ python tools/room.py --run generate_dataset
 ### 3.2 Experiment
 
 1. **Train**: Run the following command to train the network on 4 GPUs. The
-   training takes 27 hours on 4 V100 GPUs. The trained weight and log can be
-   downloaded
-   [here](https://www.dropbox.com/s/t9p8e8tg9rzeaeq/room_weights_log.zip?dl=1).
+   training takes about 41 hours on 4 2080Ti GPUs. The trained weight and log
+   can be downloaded [here](https://1drv.ms/u/s!AlVDZcYenwuVc9VL9xut1GjqaxU).
 
     ```bash
     python main.py  --config configs/synthetic_room.yaml SOLVER.gpu 0,1,2,3
@@ -204,9 +203,8 @@ python tools/room.py --run generate_dataset
 ### 4.2 Experiment
 
 1. **Train**: Run the following command to train the network on 4 GPUs. The
-   training takes 20 hours on 4 V100 GPUs. The trained weight and log can be
-   downloaded
-   [here](https://www.dropbox.com/s/lyhr9n3b7uhjul8/dfaust_weights_log.zip?dl=0).
+   training takes about 44 hours on 4 2080Ti GPUs. The trained weight and log
+   can be downloaded [here](https://1drv.ms/u/s!AlVDZcYenwuVdE0SMPYAy261clA).
 
     ```bash
     python main.py  --config configs/dfaust.yaml SOLVER.gpu 0,1,2,3
@@ -267,9 +265,8 @@ Following the instructions [here](#21-data-preparation) to prepare the dataset.
 ### 5.2 Experiment
 
 1. **Train**: Run the following command to train the network on 4 GPUs. The
-   training takes 24 hours on 4 V100 GPUs. The trained weight and log can be
-   downloaded
-   [here](https://www.dropbox.com/s/3e4bx3zaj0b85kd/shapenet_ae_weights_log.zip?dl=1).
+   training takes 25 hours on 4 2080Ti GPUs. The trained weight and log can be
+   downloaded [here](https://1drv.ms/u/s!AlVDZcYenwuVdVl_2aMRuTAEZ3A).
 
     ```bash
     python main.py  --config configs/shapenet_ae.yaml SOLVER.gpu 0,1,2,3

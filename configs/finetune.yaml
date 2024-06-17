@@ -58,7 +58,6 @@ MODEL:
 
   depth_out: 8
 
-
 LOSS:
   name: dfaust
   loss_type: possion_grad_loss
