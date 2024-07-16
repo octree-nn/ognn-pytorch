@@ -313,7 +313,7 @@ class GraphUpsample(torch.nn.Module):
           in_channels, out_channels, norm_type, act_type)
 
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
-    # upsample nodes at layer (depth-1)
+    # upsample nodes at layer depth
     numd = octree.nnum[depth]
     leaf_mask = octree.children[depth] < 0
     outd = x[-numd:]

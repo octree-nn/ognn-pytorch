@@ -5,11 +5,15 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
+from . import nn
 from . import loss
+
 from .ounet import GraphOUNet
 from .ae import GraphAE
 from .unet import GraphUNet
 from .vae import GraphVAE
+from .mpu import NeuralMPU
 
-
-__all__ = ['loss', 'GraphOUNet', 'GraphAE', 'GraphUNet', 'GraphVAE']
+__all__ = [
+    'nn', 'loss', 'GraphOUNet', 'GraphAE', 'GraphUNet', 'GraphVAE', 'NeuralMPU'
+]
