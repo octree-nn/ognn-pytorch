@@ -5,6 +5,10 @@ This repository contains a **pure PyTorch**-based implementation of our papers
 Ubuntu 18.04 with 4 2080Ti GPUs (12GB memory). The code is released under the
 **MIT license**.
 
+[![Downloads](https://static.pepy.tech/badge/ognn)](https://pepy.tech/project/ognn)
+[![PyPI](https://img.shields.io/pypi/v/ognn)](https://pypi.org/project/ognn/)
+
+
 **[Dual Octree Graph Networks for Learning Adaptive Volumetric Shape Representations](https://arxiv.org/abs/2205.02825)**<br/>
 [Peng-Shuai Wang](https://wang-ps.github.io/),
 [Yang Liu](https://xueyuhanlang.github.io/), and
