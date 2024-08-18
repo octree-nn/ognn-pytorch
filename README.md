@@ -1,9 +1,10 @@
 # Dual Octree Graph Networks
 
 This repository contains a **pure PyTorch**-based implementation of our papers
-*Dual Octree Graph Networks* (SIGGRAPH 2022). The experiments are conducted on
-Ubuntu 18.04 with 4 2080Ti GPUs (12GB memory). The code is released under the
-**MIT license**.
+*Dual Octree Graph Networks* (SIGGRAPH 2022). The original implementation can be
+found [here](https://github.com/microsoft/DualOctreeGNN). The experiments are
+conducted on Ubuntu 18.04 with 4 2080Ti GPUs (12GB memory). The code is released
+under the **MIT license**.
 
 [![Downloads](https://static.pepy.tech/badge/ognn)](https://pepy.tech/project/ognn)
 [![PyPI](https://img.shields.io/pypi/v/ognn)](https://pypi.org/project/ognn/)
