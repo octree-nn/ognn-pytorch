@@ -16,6 +16,11 @@ class Graph:
 
   def __init__(self, **kwargs):
     super().__init__()
+    # !!! Important !!!
+    # Each key has 64 bits. The first 48 bits contains the shuffled key, the
+    # 49th to 58th bits (10 bits) contains the batch index, and the 59th to 63th
+    # bits (5 bits) contains the node depth. Therefore, the batch size should be
+    # smaller than 2^10, and the octree depth should be smaller than 2^5.
     self.key_shift = 58
     self.depth_min = None
     self.depth_max = None
