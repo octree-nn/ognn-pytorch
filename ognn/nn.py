@@ -418,7 +418,7 @@ class GraphResBlocks(torch.nn.Module):
   def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
     for i in range(self.resblk_num):
       if self.use_checkpoint and self.training:
-        x = checkpoint(self.resblks[i], x, octree, depth)
+        x = checkpoint(self.resblks[i], x, octree, depth, use_reentrant=False)
       else:
         x = self.resblks[i](x, octree, depth)
     return x
