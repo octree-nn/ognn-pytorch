@@ -259,19 +259,29 @@ class OctreeD(Octree):
     edge_dir = self.interal_dir.repeat(num)
     return row.view(-1), col.view(-1), edge_dir.view(-1)
 
-  def get_input_feature(self, all_leaf_nodes=True, feature='L'):
-    # the initial feature of leaf nodes in the layer depth
-    # data = ocnn.modules.InputFeature(feature, nempty=False)(self)
-    data = super().get_input_feature(feature)
+  def pad_zeros(self, data: torch.Tensor, depth: int):
+    r''' Pad zeros to the input data so that the length of the feature tensor is
+    the same as the number of leaf nodes before the layer depth.
+    '''
 
-    # # to be consistent with the original code. TODO: remove this
-    # flag = self.nempty_mask(self.depth).float().unsqueeze(1)
-    # data = torch.cat([data, flag * (2 / 3 ** 0.5), flag], dim=1)
+    leaf_num = torch.sum(self.lnum[self.full_depth:depth])
+    zeros = data.new_zeros([leaf_num, data.shape[1]])
+    data = torch.cat([zeros, data], dim=0)
+    return data
+
+  def get_input_feature(self, all_leaf_nodes: bool = True, feature: str = 'L'):
+    r''' `all_leaf_nodes` is used to determine whether to concat zero features
+    with the initial features in layer depth. If `all_leaf_nodes=False`, the
+    behavior is the same as the original `Octree.get_input_feature`; otherwise,
+    the zero features will be concatenated so that the length of the feature
+    tensor is the same as the number of **all** leaf nodes, which is expected
+    when using ognn's convolution layers.
+    '''
+
+    # the initial feature of leaf nodes in the layer depth
+    data = super().get_input_feature(feature)
 
     # concat zero features with the initial features in layer depth
     if all_leaf_nodes:
-      leaf_num = torch.sum(self.lnum[self.full_depth:-1])
-      zeros = torch.zeros(leaf_num, data.shape[1], device=self.device)
-      data = torch.cat([zeros, data], dim=0)
-
+      data = self.pad_zeros(data, self.depth)
     return data
