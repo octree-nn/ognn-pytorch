@@ -16,7 +16,7 @@ under the **MIT license**.
 [Xin Tong](https://www.microsoft.com/en-us/research/people/xtong/) <br/>
 ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
 
-![teaser](teaser.png)
+![teaser](https://raw.githubusercontent.com/octree-nn/ognn-pytorch/refs/heads/master/teaser.png)
 
 
 - [Dual Octree Graph Networks](#dual-octree-graph-networks)
