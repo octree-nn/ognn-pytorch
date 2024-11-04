@@ -121,6 +121,13 @@ class OctreeD(Octree):
 
   def octree_grow(self, depth: int, update_neigh: bool = True):
     super().octree_grow(depth, update_neigh)
+
+    num = len(self.graphs)
+    if num <= depth:
+      assert num == depth
+      self.graphs.append(Graph())
+      self._set_node_num()
+
     if depth > self.full_depth:
       self.sparse_graph(depth)
     else:
