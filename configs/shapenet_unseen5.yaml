@@ -11,11 +11,6 @@ SOLVER:
   logdir: logs/shapenet_eval/unseen5
   ckpt: logs/shapenet/shapenet/checkpoints/00300.model.pth
 
-  # sdf
-  resolution: 128       # the resolution used for marching cubes
-  save_sdf: False       # save the sdfs in evaluation
-  sdf_scale: 0.9        # the scale of sdfs
-
 
 DATA:
   test:
@@ -38,8 +33,11 @@ DATA:
     sample_surf_points: False
     shuffle: False
     in_memory: False
-    # num_workers: 0
 
+    # sdf
+    resolution: 128       # the resolution used for marching cubes
+    save_sdf: False       # save the sdfs in evaluation
+    sdf_scale: 0.9        # the scale of sdfs
 
 MODEL:
   name: graph_ounet
@@ -49,5 +47,3 @@ MODEL:
   feature: L
   norm_type: batch_norm
   act_type: relu
-
-  depth_out: 6

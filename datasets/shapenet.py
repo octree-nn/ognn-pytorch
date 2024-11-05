@@ -62,7 +62,7 @@ class TransformShape:
       octree_in = octree_gt
 
     # construct the output dict
-    return {'octree_in': octree_in, 'points_in': points_in.points,
+    return {'octree_in': octree_in, 'points_in': points_in,
             'octree_gt': octree_gt, 'points_gt': points_gt}
 
   def sample_sdf(self, sample):
@@ -115,6 +115,7 @@ class TransformShape:
 
 
 class ReadFile:
+
   def __init__(self, load_sdf=False, load_occu=False):
     self.load_occu = load_occu
     self.load_sdf = load_sdf

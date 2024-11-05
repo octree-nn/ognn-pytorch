@@ -39,7 +39,7 @@ class Transform:
     points_in.clip(-1.0, 1.0)
     octree_in = self.points2octree(points_in)
 
-    return {'points_in': points, 'octree_in': octree_in}
+    return {'points_in': points_in, 'octree_in': octree_in}
 
 
 def read_file(filename: str):

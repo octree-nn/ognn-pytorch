@@ -15,6 +15,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import skimage.measure
 import trimesh
+
+from ocnn.octree import Points
 from plyfile import PlyData, PlyElement
 from scipy.spatial import cKDTree
 # autopep8: on
@@ -182,19 +184,13 @@ def calc_chamfer(filename_gt, filename_pred, point_num):
   return chamfer_a, chamfer_b
 
 
-def points2ply(filename, points):
-  xyz = points[:, :3]
-  if points.shape[1] > 3:
-    has_normal = True
-    normal = points[:, 3:]
-  else:
-    has_normal = False
-
+def points2ply(filename: str, points: Points):
   # data types
-  data = xyz
+  data = points.points.numpy()
   py_types = (float, float, float)
   npy_types = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-  if has_normal:
+  if points.normals is not None:
+    normal = points.normals.numpy()
     py_types = py_types + (float, float, float)
     npy_types = npy_types + [('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4')]
     data = np.concatenate((data, normal), axis=1)
