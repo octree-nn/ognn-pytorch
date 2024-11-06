@@ -71,7 +71,6 @@ MODEL:
   norm_type: batch_norm
   act_type: relu
 
-  depth_out: 7
 
 LOSS:
   name: synthetic_room

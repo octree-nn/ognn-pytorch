@@ -24,10 +24,10 @@ class Transform:
 
   def build_octree(self, points):
     pts, normals = points[:, :3], points[:, 3:]
-    points_cloud = Points(pts, normals)
+    points_in = Points(pts, normals)
     octree = Octree(self.depth, self.full_depth)
-    octree.build_octree(points_cloud)
-    return {'octree_in': octree, 'points_in': points, 'octree_gt': octree}
+    octree.build_octree(points_in)
+    return {'octree_in': octree, 'points_in': points_in, 'octree_gt': octree}
 
   def sample_on_surface(self, points):
     '''Randomly sample points on the surface.'''

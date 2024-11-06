@@ -67,7 +67,6 @@ class OGNSolver(Solver):
     output = self.model.forward(octree_in, octree_out, update_octree=True)
 
     # extract the mesh
-    # extract the mesh
     flags = self.FLAGS.DATA.test
     filename = self._extract_filename(batch)
     bbmin, bbmax = self._get_bbox(batch)

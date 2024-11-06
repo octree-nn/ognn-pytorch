@@ -11,10 +11,6 @@ SOLVER:
   logdir: logs/dfaust_eval/dfaust
   ckpt: logs/dfaust/dfaust/checkpoints/00600.model.pth
 
-  resolution: 300
-  sdf_scale: 0.9
-  save_sdf: False       # save the sdfs in evaluation
-
 
 DATA:
   test:
@@ -33,6 +29,9 @@ DATA:
     shuffle: False
     # num_workers: 0
 
+    resolution: 300
+    sdf_scale: 0.9
+    save_sdf: False       # save the sdfs in evaluation
 
 MODEL:
   name: graph_unet
@@ -43,4 +42,3 @@ MODEL:
   norm_type: batch_norm
   act_type: relu
 
-  depth_out: 8

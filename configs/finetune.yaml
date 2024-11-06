@@ -56,7 +56,6 @@ MODEL:
   norm_type: batch_norm
   act_type: relu
 
-  depth_out: 8
 
 LOSS:
   name: dfaust

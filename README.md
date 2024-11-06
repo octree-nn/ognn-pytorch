@@ -260,7 +260,7 @@ command to reproduce the results:
 
 ```bash
 python main.py --config configs/shapes.yaml  \
-       SOLVER.ckpt logs/dfaust/dfaust/checkpoints/00600.model.pth  \
+       SOLVER.ckpt logs/dfaust/dfaust/checkpoints/00600.model.pth
 ```
 
 

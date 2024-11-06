@@ -11,10 +11,6 @@ SOLVER:
   logdir: logs/shapes_eval
   ckpt: logs/dfaust/dfaust/checkpoints/00600.model.pth
 
-  resolution: 420
-  sdf_scale: 0.9
-  save_sdf: False       # save the sdfs in evaluation
-
 
 DATA:
   test:
@@ -32,6 +28,9 @@ DATA:
     batch_size: 1
     shuffle: False
 
+    resolution: 420
+    sdf_scale: 0.9
+    save_sdf: False       # save the sdfs in evaluation
 
 MODEL:
   name: graph_unet
@@ -41,5 +40,3 @@ MODEL:
   feature: ND
   norm_type: batch_norm
   act_type: relu
-
-  depth_out: 8

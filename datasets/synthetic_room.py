@@ -80,6 +80,7 @@ class TransformScene(TransformShape):
 
 
 class ReadFile:
+
   def __init__(self, load_occu=False):
     self.load_occu = load_occu
     self.num_files = 10
