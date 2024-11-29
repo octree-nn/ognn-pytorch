@@ -5,9 +5,9 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-import ocnn
 import torch
 import torch.nn.functional as F
+from ocnn.octree import Octree
 
 
 def compute_gradient(y, x):
@@ -86,15 +86,12 @@ def compute_mpu_gradients(mpus, pos, fval_transform=None):
   return grads
 
 
-def compute_octree_loss(logits, octree_out: ocnn.octree.Octree):
-  weights = [1.0] * 16
-  # weights = [1.0] * 4 + [0.8, 0.6, 0.4] + [0.2] * 16
-
+def compute_octree_loss(logits, octree: Octree):
   output = dict()
   for d in logits.keys():
     logitd = logits[d]
-    label_gt = octree_out.nempty_mask(d).long()
-    output['loss_%d' % d] = F.cross_entropy(logitd, label_gt) * weights[d]
+    label_gt = octree.nempty_mask(d).long()
+    output['loss_%d' % d] = F.cross_entropy(logitd, label_gt)
     output['accu_%d' % d] = logitd.argmax(1).eq(label_gt).float().mean()
   return output
 
