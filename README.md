@@ -1,13 +1,15 @@
 # Dual Octree Graph Networks
 
-This repository contains a **pure PyTorch**-based implementation of our papers
-*Dual Octree Graph Networks* (SIGGRAPH 2022). The original implementation can be
-found [here](https://github.com/microsoft/DualOctreeGNN). The experiments are
-conducted on Ubuntu 18.04 with 4 2080Ti GPUs (12GB memory). The code is released
-under the **MIT license**.
-
 [![Downloads](https://static.pepy.tech/badge/ognn)](https://pepy.tech/project/ognn)
 [![PyPI](https://img.shields.io/pypi/v/ognn)](https://pypi.org/project/ognn/)
+
+This repository contains a **pure PyTorch**-based implementation of our papers
+*Dual Octree Graph Networks* (SIGGRAPH 2022). The code is released under the
+**MIT license**. The experiments are conducted on Ubuntu 18.04 with 4 2080Ti
+GPUs (12GB memory). The original implementation relies on C++ and CUDA and can be found
+[here](https://github.com/microsoft/DualOctreeGNN), which has got
+[![stars - DualOctreeGNN](https://img.shields.io/github/stars/microsoft/DualOctreeGNN?style=social)](https://github.com/microsoft/DualOctreeGNN) and
+[![forks - DualOctreeGNN](https://img.shields.io/github/forks/microsoft/DualOctreeGNN?style=social)](https://github.com/microsoft/DualOctreeGNN).
 
 
 **[Dual Octree Graph Networks for Learning Adaptive Volumetric Shape Representations](https://arxiv.org/abs/2205.02825)**<br/>
