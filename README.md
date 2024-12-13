@@ -98,11 +98,14 @@ ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
     python tools/shapenet.py --run generate_dataset
     ```
 
-4. If you just want to forward the pre-trained network, the test point clouds
-   (330M) can be downloaded manually from
-   [here](https://www.dropbox.com/s/us28g6808srcop5/shapenet.test.input.zip?dl=0).
-   After downloading the zip file, unzip it to the folder
-   `data/ShapeNet/test.input`.
+4. If you just want to forward the pre-trained network, download the test point
+   clouds (330M) manually from
+   [here](https://www.dropbox.com/s/us28g6808srcop5/shapenet.test.input.zip?dl=0)
+   and unzip them to the folder `data/ShapeNet/test.input`, then download the
+   filelists from
+   [here](https://www.dropbox.com/s/4jvam486l8961t7/shapenet.filelist.zip?dl=1)
+   and unzip them to the folder `data/ShapeNet/filelist`.
+
 
 <!--
 1. For convenience, we also provided the converted dataset, which can be
