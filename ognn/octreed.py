@@ -95,6 +95,9 @@ class OctreeD(Octree):
          5, 0, 2, 5, 1, 2, 5, 3, 0, 5, 3, 1],
         dtype=torch.int64, device=self.device)
 
+  def to(self, device, non_blocking: bool = False):
+    raise NotImplementedError('Use `octree.to()` before constucting `OctreeD`.')
+
   def batch_id(self, depth: int, nempty: bool = False):
     r""" Override the method in the Octree class. """
     return self.graphs[depth].batch_id
