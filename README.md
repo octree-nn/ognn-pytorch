@@ -53,7 +53,7 @@ ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
    `PyTorch 1.12.1` and `cuda 11.3`.
 
    **Attention**: Surprisingly, the code may be more than 5 times slower if the
-   `PyTorch` version is `2.x`; the reseason might be that the scatter functions
+   `PyTorch` version is `2.x`; the reason might be that the scatter functions
    in `PyTorch` > `2.x` are much slower, which are key operations in our networks.
 
 2. Clone this repository and install other requirements.
