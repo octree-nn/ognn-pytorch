@@ -108,26 +108,6 @@ def compute_sdf_loss(mpus, grads, sdf_gt, grad_gt, reg_loss_func):
   return output
 
 
-def compute_occu_loss_1214(mpus, occu):
-  # tried on 2021.12.13
-  weights = [0.2] * 4 + [0.4, 0.6, 0.8] + [1.0] * 16  # TODO: tune the weights
-
-  inside = occu == 0
-  outside = occu == 1
-  output = dict()
-  for d in mpus.keys():
-    sdf = mpus[d]
-
-    inside_loss = torch.mean(torch.relu(sdf[inside])) * (1000 * weights[d])
-    outside_loss = torch.mean(torch.relu(-sdf[outside])) * (1000 * weights[d])
-
-    output['inside_loss_%d' % d] = inside_loss
-    output['outside_loss_%d' % d] = outside_loss
-    output['inside_accu_%d' % d] = (sdf[inside] < 0).float().mean()
-    output['outside_accu_%d' % d] = (sdf[outside] > 0).float().mean()
-  return output
-
-
 def compute_occu_loss(mpus, grads, occu, grad_gt):
   weights = [1.0] * 16
   # weights = [0.2] * 4 + [0.4, 0.6, 0.8] + [1.0] * 16
@@ -234,9 +214,9 @@ def shapenet_loss(batch, model_out, reg_loss_type='', **kwargs):
 
   # regression loss
   grads = compute_mpu_gradients(model_out['mpus'], batch['pos'])
-  reg_loss_func = get_sdf_loss_function(reg_loss_type)
+  # reg_loss_func = get_sdf_loss_function(reg_loss_type)
   sdf_loss = compute_sdf_loss(
-      model_out['mpus'], grads, batch['sdf'], batch['grad'], reg_loss_func)
+      model_out['mpus'], grads, batch['sdf'], batch['grad'], sdf_reg_loss)
   output.update(sdf_loss)
   return output
 

@@ -74,4 +74,3 @@ MODEL:
 
 LOSS:
   name: synthetic_room
-  loss_type: possion_grad_loss
