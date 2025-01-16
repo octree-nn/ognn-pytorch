@@ -86,12 +86,15 @@ def compute_mpu_gradients(mpus, pos, fval_transform=None):
   return grads
 
 
-def compute_octree_loss(logits, octree: Octree):
+def compute_octree_loss(logits, octree: Octree, weights=None):
+  if weights is None:
+    weights = [1.0] * 16
+
   output = dict()
   for d in logits.keys():
     logitd = logits[d]
     label_gt = octree.nempty_mask(d).long()
-    output['loss_%d' % d] = F.cross_entropy(logitd, label_gt)
+    output['loss_%d' % d] = F.cross_entropy(logitd, label_gt) * weights[d]
     output['accu_%d' % d] = logitd.argmax(1).eq(label_gt).float().mean()
   return output
 
@@ -99,19 +102,14 @@ def compute_octree_loss(logits, octree: Octree):
 def compute_sdf_loss(mpus, grads, sdf_gt, grad_gt, reg_loss_func):
   output = dict()
   for d in mpus.keys():
-    sdf = mpus[d]  # TODO: tune the loss weights and `flgs`
+    sdf = mpus[d]
     reg_loss = reg_loss_func(sdf, grads[d], sdf_gt, grad_gt, '_%d' % d)
-    # if d < 3:  # ignore depth 2
-    #   for key in reg_loss.keys():
-    #     reg_loss[key] = reg_loss[key] * 0.0
     output.update(reg_loss)
   return output
 
 
 def compute_occu_loss(mpus, grads, occu, grad_gt):
   weights = [1.0] * 16
-  # weights = [0.2] * 4 + [0.4, 0.6, 0.8] + [1.0] * 16
-  # weights = [0.0] * 7 + [1.0] * 16  # Single level loss
 
   inside = occu == 0
   outside = occu == 1
@@ -208,9 +206,9 @@ def get_sdf_loss_function(loss_type=''):
     return None
 
 
-def shapenet_loss(batch, model_out, reg_loss_type='', **kwargs):
+def shapenet_loss(batch, model_out, reg_loss_type='', wo=None, **kwargs):
   # octree loss
-  output = compute_octree_loss(model_out['logits'], model_out['octree_out'])
+  output = compute_octree_loss(model_out['logits'], model_out['octree_out'], wo)
 
   # regression loss
   grads = compute_mpu_gradients(model_out['mpus'], batch['pos'])
@@ -230,9 +228,9 @@ def dfaust_loss(batch, model_out, reg_loss_type='', **kwargs):
   return output
 
 
-def synthetic_room_loss(batch, model_out, *args, **kwargs):
+def synthetic_room_loss(batch, model_out, wo=None, *args, **kwargs):
   # octree loss
-  output = compute_octree_loss(model_out['logits'], model_out['octree_out'])
+  output = compute_octree_loss(model_out['logits'], model_out['octree_out'], wo)
 
   # grads
   grads = compute_mpu_gradients(model_out['mpus'], batch['pos'])
