@@ -19,6 +19,7 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 from plyfile import PlyData, PlyElement
+import concurrent.futures as futures
 
 logger = logging.getLogger("trimesh")
 logger.setLevel(logging.ERROR)
@@ -29,11 +30,14 @@ parser.add_argument('--start', type=int, default=0)
 parser.add_argument('--end', type=int, default=45572)
 parser.add_argument('--size', type=int, default=128)       # resolution of SDF
 parser.add_argument('--level', type=float, default=0.015)  # 2/128=0.015625
+parser.add_argument('--workers', type=int, default=0)      # 0 -> use cpu_count
 args = parser.parse_args()
+
+mesh_scale = 0.8   # normalize the mesh into [-0.8, 0.8]
+shape_scale = 0.5  # rescale the point cloud into [-0.5, 0.5]
 
 size = args.size
 level = args.level
-shape_scale = 0.5  # rescale the shape into [-0.5, 0.5]
 project_folder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 root_folder = os.path.join(project_folder, 'data/ShapeNet')
 
@@ -56,8 +60,7 @@ def check_folder(filenames: list):
 
   for filename in filenames:
     folder = os.path.dirname(filename)
-    if not os.path.exists(folder):
-      os.makedirs(folder)
+    os.makedirs(folder, exist_ok=True)
 
 
 def get_filenames(filelist):
@@ -116,42 +119,61 @@ def download_filelist():
     create_flag_file(flag_file)
 
 
+def _mesh2sdf(filename):
+  r'''Worker to process a single ShapeNet mesh -> SDF + manifold mesh.
+  '''
+
+  folder = root_folder
+  filename_raw = os.path.join(folder, 'ShapeNetCore.v1', filename, 'model.obj')
+  filename_obj = os.path.join(folder, 'mesh', filename + '.obj')
+  filename_box = os.path.join(folder, 'bbox', filename + '.npz')
+  filename_npy = os.path.join(folder, 'sdf', filename + '.npy')
+  check_folder([filename_obj, filename_box, filename_npy])
+
+  if os.path.exists(filename_obj):
+    return ('skipped', filename)
+
+  mesh = trimesh.load(filename_raw, force='mesh')
+
+  vertices = mesh.vertices
+  bbmin, bbmax = vertices.min(0), vertices.max(0)
+  center = (bbmin + bbmax) * 0.5
+  scale = 2.0 * mesh_scale / (bbmax - bbmin).max()
+  vertices = (vertices - center) * scale
+
+  sdf, mesh_new = mesh2sdf.compute(
+      vertices, mesh.faces, size, fix=True, level=level, return_mesh=True)
+  mesh_new.vertices = mesh_new.vertices * shape_scale
+
+  np.savez(filename_box, bbmax=bbmax, bbmin=bbmin, mul=mesh_scale)
+  np.save(filename_npy, sdf)
+  mesh_new.export(filename_obj)
+  return ('ok', filename)
+
+
 def run_mesh2sdf():
   r''' Converts the meshes from ShapeNet to SDFs and manifold meshes.
   '''
 
-  print('-> Run mesh2sdf.')
-  mesh_scale = 0.8
-  filenames = get_filenames('all.txt')
-  for i in tqdm(range(args.start, args.end), ncols=80):
-    filename = filenames[i]
-    filename_raw = os.path.join(
-        root_folder, 'ShapeNetCore.v1', filename, 'model.obj')
-    filename_obj = os.path.join(root_folder, 'mesh', filename + '.obj')
-    filename_box = os.path.join(root_folder, 'bbox', filename + '.npz')
-    filename_npy = os.path.join(root_folder, 'sdf', filename + '.npy')
-    check_folder([filename_obj, filename_box, filename_npy])
-    if os.path.exists(filename_obj): continue
+  print('-> Run mesh2sdf (parallel).')
+  all_filenames = get_filenames('all.txt')
+  start = max(0, args.start)
+  end = min(len(all_filenames), args.end)
+  todo = all_filenames[start:end]
 
-    # load the raw mesh
-    mesh = trimesh.load(filename_raw, force='mesh')
-
-    # rescale mesh to [-1, 1] for mesh2sdf, note the factor **mesh_scale**
-    vertices = mesh.vertices
-    bbmin, bbmax = vertices.min(0), vertices.max(0)
-    center = (bbmin + bbmax) * 0.5
-    scale = 2.0 * mesh_scale / (bbmax - bbmin).max()
-    vertices = (vertices - center) * scale
-
-    # run mesh2sdf
-    sdf, mesh_new = mesh2sdf.compute(vertices, mesh.faces, size, fix=True,
-                                     level=level, return_mesh=True)
-    mesh_new.vertices = mesh_new.vertices * shape_scale
-
-    # save
-    np.savez(filename_box, bbmax=bbmax, bbmin=bbmin, mul=mesh_scale)
-    np.save(filename_npy, sdf)
-    mesh_new.export(filename_obj)
+  ok = skipped = err = 0
+  max_workers = args.workers if args.workers > 0 else os.cpu_count()
+  # Use processes due to heavy CPU-bound work in mesh2sdf
+  with futures.ProcessPoolExecutor(max_workers=max_workers) as ex:
+    for status, name in tqdm(ex.map(_mesh2sdf, todo), total=len(todo), ncols=80):
+      if status == 'ok':
+        ok += 1
+      elif status == 'skipped':
+        skipped += 1
+      else:
+        err += 1
+      tqdm.write(f'  - {status}: {name}')
+  print(f"Done. ok={ok}, skipped={skipped}, err={err}, workers={max_workers}")
 
 
 def sample_pts_from_mesh():
