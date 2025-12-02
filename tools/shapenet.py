@@ -27,10 +27,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--start', type=int, default=0)
 parser.add_argument('--end', type=int, default=45572)
+parser.add_argument('--size', type=int, default=128)       # resolution of SDF
+parser.add_argument('--level', type=float, default=0.015)  # 2/128=0.015625
 args = parser.parse_args()
 
-size = 128         # resolution of SDF
-level = 0.015      # 2/128 = 0.015625
+size = args.size
+level = args.level
 shape_scale = 0.5  # rescale the shape into [-0.5, 0.5]
 project_folder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 root_folder = os.path.join(project_folder, 'data/ShapeNet')
