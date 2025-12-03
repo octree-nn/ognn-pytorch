@@ -77,11 +77,9 @@ ACM Transactions on Graphics (**SIGGRAPH**), 41(4), 2022
     ```
 
    Note that this process is relatively slow, it may take several days to finish
-   converting all the meshes from ShapeNet. And for simplicity, I did not use
-   multiprocessing of Python to speed up. If the speed is a matter, you can
-   simultaneously execute multiple Python commands manually by specifying the
-   `start` and `end` index of the mesh to be processed. An example is shown as
-   follows:
+   converting all the meshes from ShapeNet. You can also execute the script by
+   manually specifying the `start` and `end` index of the mesh to be processed.
+   An example is shown as follows:
 
     ```bash
     python tools/shapenet.py --run convert_mesh_to_sdf --start 10000 --end 20000
