@@ -5,6 +5,7 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
+from . import conv
 from . import nn
 from . import loss
 
@@ -16,6 +17,6 @@ from .vae import GraphVAE
 from .mpu import NeuralMPU
 
 __all__ = [
-    'nn', 'loss', 'OctreeD',
+    'conv', 'nn', 'loss', 'OctreeD',
     'GraphOUNet', 'GraphAE', 'GraphUNet', 'GraphVAE', 'NeuralMPU',
 ]

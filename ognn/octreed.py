@@ -12,6 +12,27 @@ from typing import Optional
 from ocnn.octree import Octree, key2xyz, xyz2key
 
 
+def simplify_graph_forward_inplace(graph: "Graph"):
+    row, col = graph.edge_idx
+    if not len(row) or not len(col):
+      return
+    edge_index = row * 7 + graph.edge_dir
+    sort_idx = torch.argsort(edge_index, stable=True)
+    row = row[sort_idx]
+    col = col[sort_idx]
+    edge_dir = graph.edge_dir[sort_idx]
+    edge_index = edge_index[sort_idx]
+    unique_edge_idx, counts = torch.unique(edge_index, return_counts=True)
+    starts = torch.cat(
+        [
+            torch.zeros((1,), device=counts.device, dtype=torch.long),
+            counts.cumsum(0)[:-1],
+        ]
+    )
+    graph.edge_dir = edge_dir[starts]
+    graph.edge_idx = torch.stack((row[starts], col[starts]), dim=0)
+
+
 class Graph:
 
   def __init__(self, **kwargs):
@@ -110,7 +131,8 @@ class OctreeD(Octree):
 
   def build_dual_graph(self, max_depth: Optional[int] = None):
     depth = max_depth or self.depth
-    self.dense_graph(self.full_depth)
+    for d in range(self.full_depth + 1):
+      self.dense_graph(d)
     for d in range(self.full_depth + 1, depth + 1):
       self.sparse_graph(d)
 
