@@ -68,29 +68,20 @@ class GraphConv(torch.nn.Module):
              self.n_edge_type, self.n_node_type, self.use_bias))  # noqa
 
 
+@torch.compile(dynamic=True)
 def im2col_simplified(graph: Graph, n_edge_type: int, data: torch.Tensor):
     N, F_dim = data.shape
     device = data.device
-    
-    # 1. 使用 F.pad 替代 cat+zeros
-    # F.pad 比 torch.cat 更快，因为它不需要显式创建一个 (1, F) 的全0张量对象
-    # 参数 (0, 0, 0, 1) 表示：最后一维左右各垫0个，倒数第二维(行)上边垫0个、下边垫1个
+
     data_padded = F.pad(data, (0, 0, 0, 1))
     
-    # 2. 预分配目标索引
-    # 全指向最后一个位置 (即 data_padded 的最后一行，全是 0)
     target_idx = torch.full((N * n_edge_type,), N, dtype=torch.long, device=device)
     
-    # 3. 准备索引数据
     row, col = graph.edge_idx
-    # 计算一维扁平索引
     index = torch.add(graph.edge_type, row, alpha=n_edge_type)
-    
-    # 【优化】使用 scatter_ 替代 target_idx[index] = col
-    # 避免了左值索引的 Python overhead，直接调用底层核函数进行赋值
     target_idx.scatter_(0, index, col)
     target_idx[n_edge_type - 1 :: n_edge_type] = torch.arange(N, device=device)
-    col_data = torch.index_select(data_padded, 0, target_idx)
+    col_data = F.embedding(target_idx, data_padded, padding_idx=N)
     
     return col_data.view(N, -1)
 
@@ -110,7 +101,7 @@ class GraphConvNew(GraphConv):
         # matrix product
         output = col_data @ self.weights
 
-        # add bias
+        # # add bias
         if self.use_bias:
             output += self.bias
         return output
