@@ -10,7 +10,7 @@ import torch
 import triton
 import ocnn
 from ocnn.octree import Points, Octree
-from ognn.conv import GraphConv, GraphConvNew
+from ognn.conv import GraphConv, GraphConvNew, GraphConvIGEMM
 from ognn.octreed import OctreeD, simplify_graph_forward_inplace
 
 device = "cuda"
@@ -66,16 +66,17 @@ configs = [
         x_names=["depth"],
         x_vals=[5, 6, 7, 8, 9, 10],
         line_arg="provider",
-        line_vals=["original", 'original_simplify', "new"],
-        line_names=["Original", "Original Simplify", "New"],
-        styles=[("green", "-"), ("red", "-"), ("blue", "-")],
+        line_vals=["original", 'original_simplify', "egemm", "igemm"],
+        line_names=["Original", "Original Simplify", "EGEMM", "IGEMM"],
+        styles=[("green", "-"), ("red", "-"), ("blue", "-"), ("purple", "-")],
         ylabel="Latency (ms)",
         plot_name=f"{mode}-{str(dtype)}",
         args={"mode": mode, "dtype": dtype},
         y_log=True,
     )
     for mode in ["fwd", "bwd"]
-    for dtype in [torch.float32, torch.bfloat16]
+    for dtype in [torch.bfloat16]
+    # for dtype in [torch.float32, torch.bfloat16]
 ]
 
 
@@ -96,9 +97,19 @@ def benchmark(depth, provider, mode, dtype):
             .to(device)
         )
 
-    elif provider == "new":
+    elif provider == "egemm":
         model = (
             GraphConvNew(
+                in_channel,
+                out_channel,
+                use_bias=True,
+            )
+            .type(dtype)
+            .to(device)
+        )
+    elif provider == "igemm":
+        model = (
+            GraphConvIGEMM(
                 in_channel,
                 out_channel,
                 use_bias=True,
@@ -118,7 +129,7 @@ def benchmark(depth, provider, mode, dtype):
     octree.construct_all_neigh()
     octree = OctreeD(octree)
     nnum = octree.graphs[depth].nnum
-    if provider == "original_simplify" or provider == "new":
+    if provider == "original_simplify" or provider == "egemm" or provider == "igemm":
         for graph in octree.graphs:
             simplify_graph_forward_inplace(graph)
 
@@ -141,7 +152,7 @@ def benchmark(depth, provider, mode, dtype):
         def run_bwd():
             out = model(data, octree, depth)
             grad_out = torch.randn_like(out)
-            out.backward(grad_out, retain_graph=True)
+            out.backward(grad_out)
 
         ms = triton.testing.do_bench(run_bwd)
     return ms

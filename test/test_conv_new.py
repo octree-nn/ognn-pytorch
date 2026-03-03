@@ -9,10 +9,9 @@ import os
 import torch
 import unittest
 
-import ocnn
 from ocnn.octree import Points, Octree
-from ognn.conv import GraphConv, GraphConvNew
-from ognn.octreed import OctreeD, simplify_graph_forward_inplace
+from ognn.conv import GraphConv, GraphConvNew, GraphConvIGEMM
+from ognn.octreed import OctreeD, simplify_graph_forward_inplace, simplify_graph_backward_inplace
 
 
 def sphere_coords(resolution, device="cuda"):
@@ -49,10 +48,17 @@ def sphere_coords(resolution, device="cuda"):
     return pos
 
 
+def calc_err(src, ref):
+    abs_err = (src - ref).float().abs()
+    rel_err = abs_err / torch.clamp_min(ref.float().abs(), 1e-6)
+    err = torch.minimum(abs_err, rel_err)
+    return err.max().item(), err.mean().item()
+
+
 class TestOctreeConvTriton(unittest.TestCase):
     def test_conv(self):
         octree = self.build_octree()
-        depth2channel = {3: 1024, 4: 512, 5: 256, 6: 128, 7: 64}
+        depth2channel = {3: 1024, 4: 512, 5: 256, 6: 128, 7: 64, 8: 32}
         for d in [octree.depth, octree.depth - 1]:
             for out_ratio in [1.0, 0.5, 2.0]:
                 self.conv_forward_backward(d, out_ratio, octree, depth2channel[d])
@@ -75,7 +81,7 @@ class TestOctreeConvTriton(unittest.TestCase):
 
     def build_octree(self):
         r = 64
-        depth, full_depth = 7, 3
+        depth, full_depth = 7, 1
         pos = sphere_coords(64, device="cuda")
         pos = pos / r * 2.0 - 1.0  # normalize to [-1,1]
         points = Points(points=pos)
@@ -85,12 +91,11 @@ class TestOctreeConvTriton(unittest.TestCase):
         octree = OctreeD(octree)
         for graph in octree.graphs:
             simplify_graph_forward_inplace(graph)
+            simplify_graph_backward_inplace(graph)
         return octree
 
     def conv_forward_backward(self, depth, out_ratio, octree, in_channel):
         atol = 5e-3
-        kernel_size = [3, 3, 3]
-        nempty = False
         device = "cuda"
         out_channel = int(in_channel * out_ratio)
 
@@ -105,38 +110,71 @@ class TestOctreeConvTriton(unittest.TestCase):
             out_channel,
             use_bias=True,
         ).to(device)
+        conv_igemm = GraphConvIGEMM(
+            in_channel,
+            out_channel,
+            use_bias=True,
+        ).to(device)
         with torch.no_grad():
             conv_new.weights.copy_(conv_original.weights)
             conv_new.bias.copy_(conv_original.bias)
-
+            conv_igemm.weights.copy_(conv_original.weights)
+            conv_igemm.bias.copy_(conv_original.bias)
         # initialize data and grad
         data = torch.randn(octree.graphs[depth].nnum, in_channel, device=device)
         data_original = data.detach().clone().requires_grad_()
         data_new = data.detach().clone().requires_grad_()
+        data_igemm = data.detach().clone().requires_grad_()
         grad = torch.randn(octree.graphs[depth].nnum, out_channel, device=device)
 
         # forward
         out_original = conv_original(data_original, octree, depth)
         out_new = conv_new(data_new, octree, depth)
-
+        out_igemm = conv_igemm(data_igemm, octree, depth)
         # backward
         loss_original = (out_original * grad).sum()
         loss_new = (out_new * grad).sum()
+        loss_igemm = (out_igemm * grad).sum()
         loss_original.backward()
         loss_new.backward()
+        loss_igemm.backward()
 
         # check results
-        msg = f"depth: {depth}, out_ratio: {out_ratio}"
-        self.assertTrue(torch.allclose(out_original, out_new, atol=atol), msg)
-        self.assertTrue(torch.allclose(data_original.grad, data_new.grad, atol=atol), msg)
-        # TODO: depth: 7, out_ratio: 2.0, error: 0.0031270573381334543
-        err = f", error: {self.calc_err(conv_original.weights.grad, conv_new.weights.grad)}"
         self.assertTrue(
-            torch.allclose(conv_original.weights.grad, conv_new.weights.grad, atol=1e-2),
-            msg + err,
+            torch.allclose(out_original, out_new, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(out_original, out_new)}",
         )
         self.assertTrue(
-            torch.allclose(conv_original.bias.grad, conv_new.bias.grad, atol=atol), msg
+            torch.allclose(out_original, out_igemm, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(out_original, out_igemm)}",
+        )
+        self.assertTrue(
+            torch.allclose(data_original.grad, data_new.grad, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(data_original.grad, data_new.grad)}",
+        )
+        self.assertTrue(
+            torch.allclose(
+                conv_original.weights.grad, conv_new.weights.grad, atol=atol
+            ),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.weights.grad, conv_new.weights.grad)}",
+        )
+        self.assertTrue(
+            torch.allclose(conv_original.bias.grad, conv_new.bias.grad, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.bias.grad, conv_new.bias.grad)}",
+        )
+        self.assertTrue(
+            torch.allclose(data_original.grad, data_igemm.grad, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(data_original.grad, data_igemm.grad)}",
+        )
+        self.assertTrue(
+            torch.allclose(
+                conv_original.weights.grad, conv_igemm.weights.grad, atol=atol
+            ),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.weights.grad, conv_igemm.weights.grad)}",
+        )
+        self.assertTrue(
+            torch.allclose(conv_original.bias.grad, conv_igemm.bias.grad, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.bias.grad, conv_igemm.bias.grad)}",
         )
 
     def calc_err(self, src, ref):
