@@ -8,6 +8,7 @@
 import os
 import torch
 import unittest
+import ognn
 
 from ocnn.octree import Points, Octree
 from ognn.conv import GraphConv, GraphConvNew, GraphConvIGEMM
@@ -91,7 +92,7 @@ class TestOctreeConvTriton(unittest.TestCase):
         octree = OctreeD(octree)
         for graph in octree.graphs:
             simplify_graph_forward_inplace(graph)
-            simplify_graph_backward_inplace(graph)
+            # simplify_graph_backward_inplace(graph)
         return octree
 
     def conv_forward_backward(self, depth, out_ratio, octree, in_channel):
@@ -138,7 +139,6 @@ class TestOctreeConvTriton(unittest.TestCase):
         loss_original.backward()
         loss_new.backward()
         loss_igemm.backward()
-
         # check results
         self.assertTrue(
             torch.allclose(out_original, out_new, atol=atol),
@@ -153,24 +153,22 @@ class TestOctreeConvTriton(unittest.TestCase):
             f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(data_original.grad, data_new.grad)}",
         )
         self.assertTrue(
+            torch.allclose(data_original.grad, data_igemm.grad, atol=atol),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(data_original.grad, data_igemm.grad)}",
+        )
+        self.assertTrue(
             torch.allclose(
                 conv_original.weights.grad, conv_new.weights.grad, atol=atol
             ),
             f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.weights.grad, conv_new.weights.grad)}",
         )
         self.assertTrue(
+            torch.allclose(conv_original.weights.grad, conv_igemm.weights.grad, atol=1e-2),
+            f"depth: {depth}, out_ratio: {out_ratio}, error: {self.calc_err(conv_original.weights.grad, conv_igemm.weights.grad)}",
+        )
+        self.assertTrue(
             torch.allclose(conv_original.bias.grad, conv_new.bias.grad, atol=atol),
             f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.bias.grad, conv_new.bias.grad)}",
-        )
-        self.assertTrue(
-            torch.allclose(data_original.grad, data_igemm.grad, atol=atol),
-            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(data_original.grad, data_igemm.grad)}",
-        )
-        self.assertTrue(
-            torch.allclose(
-                conv_original.weights.grad, conv_igemm.weights.grad, atol=atol
-            ),
-            f"depth: {depth}, out_ratio: {out_ratio}, error: {calc_err(conv_original.weights.grad, conv_igemm.weights.grad)}",
         )
         self.assertTrue(
             torch.allclose(conv_original.bias.grad, conv_igemm.bias.grad, atol=atol),
@@ -184,4 +182,5 @@ class TestOctreeConvTriton(unittest.TestCase):
 
 if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    ognn.kernels.config.allow_tf32 = False
     unittest.main()

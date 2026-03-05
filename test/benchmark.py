@@ -66,9 +66,9 @@ configs = [
         x_names=["depth"],
         x_vals=[5, 6, 7, 8, 9, 10],
         line_arg="provider",
-        line_vals=["original", 'original_simplify', "egemm", "igemm"],
-        line_names=["Original", "Original Simplify", "EGEMM", "IGEMM"],
-        styles=[("green", "-"), ("red", "-"), ("blue", "-"), ("purple", "-")],
+        line_vals=["original", 'original_simplify', "baseline", "igemm"],
+        line_names=["Original", "Original Simplify", "Baseline", "IGEMM"],
+        styles=[("green", "-"), ("red", "-"), ("blue", "-"), ("orange", "-")],
         ylabel="Latency (ms)",
         plot_name=f"{mode}-{str(dtype)}",
         args={"mode": mode, "dtype": dtype},
@@ -97,7 +97,7 @@ def benchmark(depth, provider, mode, dtype):
             .to(device)
         )
 
-    elif provider == "egemm":
+    elif provider == "baseline":
         model = (
             GraphConvNew(
                 in_channel,
@@ -129,7 +129,7 @@ def benchmark(depth, provider, mode, dtype):
     octree.construct_all_neigh()
     octree = OctreeD(octree)
     nnum = octree.graphs[depth].nnum
-    if provider == "original_simplify" or provider == "egemm" or provider == "igemm":
+    if provider == "original_simplify" or provider == "igemm" or provider == "baseline":
         for graph in octree.graphs:
             simplify_graph_forward_inplace(graph)
 

@@ -1,10 +1,12 @@
 import torch
 import math
 import torch.nn.functional as F
+import triton
 
 from ognn.octreed import OctreeD, Graph
 from ognn.utils import scatter_mean
-from ognn.kernels import conv_fwd_implicit_gemm_splitk, conv_bwd_implicit_gemm_splitk
+from ognn.kernels import conv_fwd_implicit_gemm_splitk, conv_bwd_implicit_gemm_splitk, config
+from ognn.kernels.conv_bwd_implicit_gemm_splitk import conv_bwd_weight_implicit_gemm_splitk
 
 
 class FlexGEMMFn(torch.autograd.Function):
@@ -15,27 +17,65 @@ class FlexGEMMFn(torch.autograd.Function):
         weights: torch.Tensor,
         bias: torch.Tensor,
         neigh: torch.Tensor,
+        graph: Graph,
+        n_edge_type: int
     ):
         data = data.contiguous()
-        weights = weights.contiguous()
-        weights = weights.to(data.dtype)  # for torch.amp
+        # weights = weights.reshape(n_edge_type, -1, data.shape[-1]).permute(2, 0, 1).contiguous()
+        # weights = weights.to(data.dtype)  # for torch.amp
         neigh = neigh.contiguous()
         if bias is not None:
             bias = bias.contiguous()
             bias = bias.to(data.dtype)  # for torch.amp
 
-        out = conv_fwd_implicit_gemm_splitk(data, weights, bias, neigh)
+        out = conv_fwd_implicit_gemm_splitk(data, weights.reshape(n_edge_type, data.shape[-1], -1).permute(2, 0, 1).contiguous().type(data.dtype), bias, neigh)
         ctx.save_for_backward(data, weights, bias, neigh)
+        ctx.graph = graph
+        ctx.n_edge_type = n_edge_type
         return out
 
     @staticmethod
     def backward(ctx, grad):
+        # data, weights, bias, neigh = ctx.saved_tensors
+        # grad = grad.contiguous()
+        # grad_input, grad_weight, grad_bias = conv_bwd_implicit_gemm_splitk(
+        #     grad, data, weights, bias, neigh, ctx.needs_input_grad
+        # )
+        # return grad_input, grad_weight, grad_bias, None
         data, weights, bias, neigh = ctx.saved_tensors
-        grad = grad.contiguous()
-        grad_input, grad_weight, grad_bias = conv_bwd_implicit_gemm_splitk(
-            grad, data, weights, bias, neigh, ctx.needs_input_grad
-        )
-        return grad_input, grad_weight, grad_bias, None
+        graph = ctx.graph
+        n_edge_type = ctx.n_edge_type
+        grad_data = grad_weights = grad_bias = None
+        if bias is not None and ctx.needs_input_grad[2]:
+            grad_bias = grad.sum(0)
+        if ctx.needs_input_grad[1]:
+            _, Co = weights.shape
+            # grad_weights = col_data.t() @ grad
+            grad_weights = conv_bwd_weight_implicit_gemm_splitk(
+                grad,
+                data,
+                neigh,
+            )
+            grad_weights = grad_weights.permute(1, 2, 0).reshape(-1, Co)
+        if ctx.needs_input_grad[0]:
+            grad_col_data = grad @ weights.t()
+            grad_col_flat = grad_col_data.view(-1, data.shape[1])
+
+            grad_data = torch.zeros_like(data)
+            N = data.shape[0]
+            device = data.device
+            target_idx = torch.full((N * n_edge_type,), N, dtype=torch.long, device=device)
+            row, col = graph.edge_idx
+            index = torch.add(graph.edge_type, row, alpha=n_edge_type)
+            target_idx.scatter_(0, index, col)
+            target_idx[n_edge_type - 1 :: n_edge_type] = torch.arange(N, device=device)
+
+            grad_data_padded = torch.ops.aten.embedding_dense_backward(
+                grad_col_flat, target_idx, N + 1, N, False
+            )
+            grad_data = grad_data_padded[:N]
+        
+        return grad_data, grad_weights, grad_bias, None, None, None
 
 
 flex_gemm_fn = FlexGEMMFn.apply
@@ -116,7 +156,6 @@ class GraphConv(torch.nn.Module):
         )  # noqa
 
 
-@torch.compile(dynamic=True)
 def im2col_simplified(graph: Graph, n_edge_type: int, data: torch.Tensor):
     N, F_dim = data.shape
     device = data.device
@@ -175,5 +214,5 @@ class GraphConvIGEMM(GraphConv):
             target_idx[self.n_edge_type - 1 :: self.n_edge_type] = torch.arange(N, device=x.device)
             neigh = target_idx.reshape(N, -1).contiguous()
         
-        output = flex_gemm_fn(x, self.weights.reshape(self.n_edge_type, -1, self.out_channels).permute(2, 0, 1), self.bias, neigh)
+        output = flex_gemm_fn(x, self.weights, self.bias, neigh, graph, self.n_edge_type)
         return output

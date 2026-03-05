@@ -8,6 +8,7 @@
 from . import conv
 from . import nn
 from . import loss
+from . import kernels
 
 from .octreed import OctreeD
 from .ounet import GraphOUNet
@@ -19,4 +20,5 @@ from .mpu import NeuralMPU
 __all__ = [
     'conv', 'nn', 'loss', 'OctreeD',
     'GraphOUNet', 'GraphAE', 'GraphUNet', 'GraphVAE', 'NeuralMPU',
+    'kernels',
 ]
