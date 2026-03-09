@@ -1,12 +1,15 @@
 import torch
 import math
 import torch.nn.functional as F
-import triton
 
 from ognn.octreed import OctreeD, Graph
 from ognn.utils import scatter_mean
-from ognn.kernels import conv_fwd_implicit_gemm_splitk, conv_bwd_implicit_gemm_splitk, config
-from ognn.kernels.conv_bwd_implicit_gemm_splitk import conv_bwd_weight_implicit_gemm_splitk
+from ognn.kernels import (
+    conv_fwd_implicit_gemm_splitk,
+)
+from ognn.kernels.conv_bwd_implicit_gemm_splitk import (
+    conv_bwd_weight_implicit_gemm_splitk,
+)
 
 
 class FlexGEMMFn(torch.autograd.Function):
@@ -18,7 +21,7 @@ class FlexGEMMFn(torch.autograd.Function):
         bias: torch.Tensor,
         neigh: torch.Tensor,
         graph: Graph,
-        n_edge_type: int
+        n_edge_type: int,
     ):
         data = data.contiguous()
         # weights = weights.reshape(n_edge_type, -1, data.shape[-1]).permute(2, 0, 1).contiguous()
@@ -28,7 +31,15 @@ class FlexGEMMFn(torch.autograd.Function):
             bias = bias.contiguous()
             bias = bias.to(data.dtype)  # for torch.amp
 
-        out = conv_fwd_implicit_gemm_splitk(data, weights.reshape(n_edge_type, data.shape[-1], -1).permute(2, 0, 1).contiguous().type(data.dtype), bias, neigh)
+        out = conv_fwd_implicit_gemm_splitk(
+            data,
+            weights.reshape(n_edge_type, data.shape[-1], -1)
+            .permute(2, 0, 1)
+            .contiguous()
+            .type(data.dtype),
+            bias,
+            neigh,
+        )
         ctx.save_for_backward(data, weights, bias, neigh)
         ctx.graph = graph
         ctx.n_edge_type = n_edge_type
@@ -64,7 +75,9 @@ class FlexGEMMFn(torch.autograd.Function):
             grad_data = torch.zeros_like(data)
             N = data.shape[0]
             device = data.device
-            target_idx = torch.full((N * n_edge_type,), N, dtype=torch.long, device=device)
+            target_idx = torch.full(
+                (N * n_edge_type,), N, dtype=torch.long, device=device
+            )
             row, col = graph.edge_idx
             index = torch.add(graph.edge_type, row, alpha=n_edge_type)
             target_idx.scatter_(0, index, col)
@@ -74,7 +87,7 @@ class FlexGEMMFn(torch.autograd.Function):
                 grad_col_flat, target_idx, N + 1, N, False
             )
             grad_data = grad_data_padded[:N]
-        
+
         return grad_data, grad_weights, grad_bias, None, None, None
 
 
@@ -173,9 +186,11 @@ def im2col_simplified(graph: Graph, n_edge_type: int, data: torch.Tensor):
     return col_data.view(N, -1)
 
 
-class GraphConvNew(GraphConv):
+class GraphConvSimplifiedEGEMM(GraphConv):
     def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
         graph = octree.graphs[depth]
+        if not graph.simplified:
+            raise ValueError("Graph is not simplified")
 
         # concatenate the one_hot vector for node_type
         if self.n_node_type > 1:
@@ -194,25 +209,33 @@ class GraphConvNew(GraphConv):
         return output
 
 
-class GraphConvIGEMM(GraphConv):
+class GraphConvSimplifiedIGEMM(GraphConv):
     def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
         graph = octree.graphs[depth]
+        if not graph.simplified:
+            raise ValueError("Graph is not simplified")
 
         # concatenate the one_hot vector for node_type
         if self.n_node_type > 1:
             one_hot = F.one_hot(graph.node_type, num_classes=self.n_node_type)
             x = torch.cat([x, one_hot], dim=1)
-        
-        if hasattr(graph, 'neighbour'):
+
+        if hasattr(graph, "neighbour"):
             neigh = graph.neighbour
         else:
             N = graph.nnum
-            target_idx = torch.full((N * self.n_edge_type,), -1, dtype=torch.long, device=x.device)
+            target_idx = torch.full(
+                (N * self.n_edge_type,), -1, dtype=torch.long, device=x.device
+            )
             row, col = graph.edge_idx
             index = torch.add(graph.edge_type, row, alpha=self.n_edge_type)
             target_idx.scatter_(0, index, col)
-            target_idx[self.n_edge_type - 1 :: self.n_edge_type] = torch.arange(N, device=x.device)
+            target_idx[self.n_edge_type - 1 :: self.n_edge_type] = torch.arange(
+                N, device=x.device
+            )
             neigh = target_idx.reshape(N, -1).contiguous()
-        
-        output = flex_gemm_fn(x, self.weights, self.bias, neigh, graph, self.n_edge_type)
+
+        output = flex_gemm_fn(
+            x, self.weights, self.bias, neigh, graph, self.n_edge_type
+        )
         return output

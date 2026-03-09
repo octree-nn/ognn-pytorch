@@ -10,7 +10,7 @@ import torch
 import triton
 import ocnn
 from ocnn.octree import Points, Octree
-from ognn.conv import GraphConv, GraphConvNew, GraphConvIGEMM
+from ognn.conv import GraphConv, GraphConvSimplifiedEGEMM, GraphConvSimplifiedIGEMM
 from ognn.octreed import OctreeD, simplify_graph_forward_inplace
 
 device = "cuda"
@@ -99,7 +99,7 @@ def benchmark(depth, provider, mode, dtype):
 
     elif provider == "baseline":
         model = (
-            GraphConvNew(
+            GraphConvSimplifiedEGEMM(
                 in_channel,
                 out_channel,
                 use_bias=True,
@@ -109,7 +109,7 @@ def benchmark(depth, provider, mode, dtype):
         )
     elif provider == "igemm":
         model = (
-            GraphConvIGEMM(
+            GraphConvSimplifiedIGEMM(
                 in_channel,
                 out_channel,
                 use_bias=True,
@@ -130,8 +130,7 @@ def benchmark(depth, provider, mode, dtype):
     octree = OctreeD(octree)
     nnum = octree.graphs[depth].nnum
     if provider == "original_simplify" or provider == "igemm" or provider == "baseline":
-        for graph in octree.graphs:
-            simplify_graph_forward_inplace(graph)
+        octree.simplify_all_graphs()
 
     data = torch.randn(
         nnum,

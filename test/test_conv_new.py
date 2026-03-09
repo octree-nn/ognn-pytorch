@@ -11,8 +11,8 @@ import unittest
 import ognn
 
 from ocnn.octree import Points, Octree
-from ognn.conv import GraphConv, GraphConvNew, GraphConvIGEMM
-from ognn.octreed import OctreeD, simplify_graph_forward_inplace, simplify_graph_backward_inplace
+from ognn.conv import GraphConv, GraphConvSimplifiedEGEMM, GraphConvSimplifiedIGEMM
+from ognn.octreed import OctreeD
 
 
 def sphere_coords(resolution, device="cuda"):
@@ -90,9 +90,7 @@ class TestOctreeConvTriton(unittest.TestCase):
         octree.build_octree(points)
         octree.construct_all_neigh()
         octree = OctreeD(octree)
-        for graph in octree.graphs:
-            simplify_graph_forward_inplace(graph)
-            # simplify_graph_backward_inplace(graph)
+        octree.simplify_all_graphs()
         return octree
 
     def conv_forward_backward(self, depth, out_ratio, octree, in_channel):
@@ -106,12 +104,12 @@ class TestOctreeConvTriton(unittest.TestCase):
             out_channel,
             use_bias=True,
         ).to(device)
-        conv_new = GraphConvNew(
+        conv_new = GraphConvSimplifiedEGEMM(
             in_channel,
             out_channel,
             use_bias=True,
         ).to(device)
-        conv_igemm = GraphConvIGEMM(
+        conv_igemm = GraphConvSimplifiedIGEMM(
             in_channel,
             out_channel,
             use_bias=True,

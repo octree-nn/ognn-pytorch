@@ -31,27 +31,7 @@ def simplify_graph_forward_inplace(graph: "Graph"):
     )
     graph.edge_dir = edge_dir[starts]
     graph.edge_idx = torch.stack((row[starts], col[starts]), dim=0)
-
-
-def simplify_graph_backward_inplace(graph: "Graph"):
-    row, col = graph.edge_idx
-    if not len(row) or not len(col):
-        return
-    edge_index = col * 7 + graph.edge_dir
-    sort_idx = torch.argsort(edge_index, stable=True)
-    row = row[sort_idx]
-    col = col[sort_idx]
-    edge_dir = graph.edge_dir[sort_idx]
-    edge_index = edge_index[sort_idx]
-    unique_edge_idx, counts = torch.unique(edge_index, return_counts=True)
-    starts = torch.cat(
-        [
-            torch.zeros((1,), device=counts.device, dtype=torch.long),
-            counts.cumsum(0)[:-1],
-        ]
-    )
-    graph.edge_dir = edge_dir[starts]
-    graph.edge_idx = torch.stack((row[starts], col[starts]), dim=0)
+    graph.simplified = True
 
 
 class Graph:
@@ -75,6 +55,7 @@ class Graph:
 
         self.edge_idx = None  # the edge index in (i, j)
         self.edge_dir = None  # the dirction of the edge
+        self.simplified = False
 
     @property
     def node_type(self):
@@ -357,3 +338,13 @@ class OctreeD(Octree):
         if all_leaf_nodes:
             data = self.pad_zeros(data, self.depth)
         return data
+
+    def simplify_graph(self, depth: int):
+        graph = self.graphs[depth]
+        if graph.simplified:
+            return
+        simplify_graph_forward_inplace(graph)
+
+    def simplify_all_graphs(self):
+        for depth in range(self.depth + 1):
+            self.simplify_graph(depth)
