@@ -5,14 +5,12 @@
 # Written by Peng-Shuai Wang
 # --------------------------------------------------------
 
-import math
 import ocnn
 import torch
-import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
 from ognn.octreed import OctreeD
-from ognn.utils import scatter_mean
+from ognn.conv import GraphConv
 
 
 class Activation(torch.nn.Module):
@@ -31,68 +29,6 @@ class Activation(torch.nn.Module):
 
   def forward(self, x: torch.Tensor):
     return self.activation(x)
-
-
-class GraphConv(torch.nn.Module):
-
-  def __init__(
-          self, in_channels: int, out_channels: int, n_edge_type: int = 7,
-          n_node_type: int = 0, use_bias: bool = False):
-    super().__init__()
-    self.avg_degree = 7
-    self.in_channels = in_channels
-    self.out_channels = out_channels
-    self.n_edge_type = n_edge_type
-    self.n_node_type = n_node_type
-    self.use_bias = use_bias
-
-    node_channel = n_node_type if n_node_type > 1 else 0
-    self.weights = torch.nn.Parameter(
-        torch.Tensor(n_edge_type * (in_channels + node_channel), out_channels))
-    if self.use_bias:
-      self.bias = torch.nn.Parameter(torch.Tensor(out_channels))
-    self.reset_parameters()
-
-  def reset_parameters(self) -> None:
-    fan_in = self.avg_degree * self.in_channels
-    fan_out = self.avg_degree * self.out_channels
-    std = math.sqrt(2.0 / float(fan_in + fan_out))
-    a = math.sqrt(3.0) * std
-    torch.nn.init.uniform_(self.weights, -a, a)
-    if self.use_bias:
-      torch.nn.init.zeros_(self.bias)
-
-  def forward(self, x: torch.Tensor, octree: OctreeD, depth: int):
-    graph = octree.graphs[depth]
-
-    # concatenate the one_hot vector for node_type
-    if self.n_node_type > 1:
-      one_hot = F.one_hot(graph.node_type, num_classes=self.n_node_type)
-      x = torch.cat([x, one_hot], dim=1)
-
-    # x -> col_data
-    row, col = graph.edge_idx
-    index = row * self.n_edge_type + graph.edge_type
-    col_data = scatter_mean(
-        x[col], index, dim=0, dim_size=x.shape[0] * self.n_edge_type)
-
-    # add self-loops
-    index = torch.arange(graph.nnum, dtype=torch.int64, device=x.device)
-    index = index * self.n_edge_type + (self.n_edge_type - 1)
-    col_data[index] = x
-
-    # matrix product
-    output = col_data.view(x.shape[0], -1) @ self.weights
-
-    # add bias
-    if self.use_bias:
-      out += self.bias
-    return output
-
-  def extra_repr(self) -> str:
-    return ('in_channels={}, out_channels={}, n_edge_type={}, n_node_type={}, '
-            'use_bias={}'.format(self.in_channels, self.out_channels,
-             self.n_edge_type, self.n_node_type, self.use_bias))  # noqa
 
 
 class GraphNorm(torch.nn.Module):
