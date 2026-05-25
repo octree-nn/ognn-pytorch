@@ -156,7 +156,7 @@ def run_mesh2sdf():
   '''
 
   print('-> Run mesh2sdf (parallel).')
-  all_filenames = get_filenames('all.txt')
+  all_filenames = get_filenames('all_shapenet.txt')
   start = max(0, args.start)
   end = min(len(all_filenames), args.end)
   todo = all_filenames[start:end]
@@ -177,15 +177,17 @@ def run_mesh2sdf():
 
 
 def sample_pts_from_mesh():
-  r''' Samples 10k points with normals from the ground-truth meshes.
+  r''' Samples points with normals from the ground-truth meshes.
   '''
 
   print('-> Run sample_pts_from_mesh.')
   num_samples = 40000
   mesh_folder = os.path.join(root_folder, 'mesh')
   output_folder = os.path.join(root_folder, 'dataset')
-  filenames = get_filenames('all.txt')
-  for i in tqdm(range(args.start, args.end), ncols=80):
+  filenames = get_filenames('all_shapenet.txt')
+  start = max(0, args.start)
+  end = min(len(filenames), args.end)
+  for i in tqdm(range(start, end), ncols=80):
     filename = filenames[i]
     filename_obj = os.path.join(mesh_folder, filename + '.obj')
     filename_pts = os.path.join(output_folder, filename, 'pointcloud.npz')
@@ -214,7 +216,9 @@ def sample_sdf():
 
   print('-> Sample SDFs from the ground truth.')
   filenames = get_filenames('all.txt')
-  for i in tqdm(range(args.start, args.end), ncols=80):
+  start = max(0, args.start)
+  end = min(len(filenames), args.end)
+  for i in tqdm(range(start, end), ncols=80):
     filename = filenames[i]
     dataset_folder = os.path.join(root_folder, 'dataset')
     filename_sdf = os.path.join(root_folder, 'sdf', filename + '.npy')
