@@ -204,6 +204,31 @@ def sample_pts_from_mesh():
              normals=normals.astype(np.float16))
 
 
+def pts_to_voxel():
+  r''' Converts the point clouds to sparse voxels for training the occupancy network.
+  '''
+
+  print('-> Run pts_to_voxel with resolution %d.' % size)
+  folder = os.path.join(root_folder, 'dataset')
+  filenames = get_filenames('all_shapenet.txt')
+  start = max(0, args.start)
+  end = min(len(filenames), args.end)
+  for i in tqdm(range(start, end), ncols=80):
+    filename = filenames[i]
+    filename_pts = os.path.join(folder, filename, 'pointcloud.npz')
+    filename_vox = os.path.join(folder, filename, 'spvoxel.npy')
+
+    # load points
+    pts = np.load(filename_pts)
+    points = pts['points'].astype(np.float32)
+
+    # rescale: [-shape_scale, shape_scale]  -> [-1, 1] -> [0, size]
+    points = (points / shape_scale + 1.0) * (size / 2.0)
+    points = np.clip(points, 0, size - 1).astype(np.uint8)
+    points = np.unique(points, axis=0)
+    np.save(filename_vox, points)
+
+
 def sample_sdf():
   r''' Samples ground-truth SDF values for training.
   '''
@@ -280,7 +305,7 @@ def sample_sdf():
 
     # concat the results
     xyzs = torch.cat(xyzs, dim=0).numpy()
-    points = (xyzs / 64 - 1).astype(np.float16) * shape_scale  # !shape_scale
+    points = (xyzs / (size / 2) - 1).astype(np.float16) * shape_scale  # !shape_scale
     grads = torch.cat(grads, dim=0).numpy().astype(np.float16)
     sdfs = torch.cat(sdfs, dim=0).numpy().astype(np.float16)
 
