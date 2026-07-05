@@ -1,5 +1,5 @@
 torch
-ocnn
+ocnn<=2.3.1
 numpy
 tqdm
 yacs

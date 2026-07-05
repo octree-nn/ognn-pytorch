@@ -24,7 +24,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['torch', 'numpy', 'ocnn', 'easydict'],
+    install_requires=['torch', 'numpy', 'ocnn<=2.3.1', 'easydict'],
     python_requires='>=3.6',
     license='MIT',
     classifiers=[
